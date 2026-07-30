@@ -17,7 +17,7 @@ export function JourneyUI({ stage }: JourneyUIProps) {
         <p className="mt-2 text-[8px] tracking-[0.26em] text-white/34">ARCHIVE LINK ACTIVE</p>
         {stage === "deep-archive" && <p className="mt-4 text-[8px] tracking-[0.3em] text-[#a99d94]/65">INCIDENT LOG / REDACTED</p>}
       </div>
-      <div className={`absolute bottom-24 left-5 border-l border-white/20 pl-4 transition-all duration-1000 sm:bottom-auto sm:left-8 sm:top-1/2 sm:-translate-y-1/2 lg:left-12 ${showObjectTwo ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"}`}>
+      <div className={`absolute bottom-32 left-5 border-l border-white/20 pl-4 transition-all duration-1000 sm:bottom-auto sm:left-8 sm:top-1/2 sm:-translate-y-1/2 lg:left-12 ${showObjectTwo ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"}`}>
         <p className="text-[8px] tracking-[0.42em] text-white/38">OBJECT 002</p>
         <p className="mt-2 text-sm tracking-[0.32em] text-white/78">RECORD LOCKED</p>
         <p className="mt-3 text-[8px] tracking-[0.27em] text-white/34">OPTICAL RESPONSE / UNRESOLVED</p>

@@ -7,14 +7,14 @@ export function ArchiveHUD({ active, stage }: ArchiveHUDProps) {
   const inTransit = ["departure", "exit", "corridor", "deep-archive"].includes(stage);
   return (
     <div className="pointer-events-none fixed inset-0 z-20 flex flex-col justify-between p-4 text-[10px] uppercase tracking-[0.34em] text-white/72 sm:p-6 lg:p-8">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-2 sm:gap-4">
         <div className="border-l border-white/20 pl-3">
           <p className="font-semibold text-white/90">VOID ARCHIVE</p>
-          <p className="mt-1.5 text-[9px] tracking-[0.28em] text-white/42">{inTransit ? "DEEP SECTOR TRANSIT" : "IMPOSSIBLE COLLECTION"}</p>
+          <p className="mt-1.5 text-[8px] tracking-[0.18em] text-white/42 sm:text-[9px] sm:tracking-[0.28em]">{inTransit ? "DEEP SECTOR TRANSIT" : "IMPOSSIBLE COLLECTION"}</p>
         </div>
         <div className="text-right">
           <p className="font-semibold text-white/65">INDEX</p>
-          <div className="mt-2 flex items-center gap-2 text-[8px] tracking-[0.2em]">
+          <div className="mt-2 flex items-center gap-1.5 text-[8px] tracking-[0.16em] sm:gap-2 sm:tracking-[0.2em]">
             {[1, 2, 3, 4, 5, 6].map((index) => (
               <span key={index} className={index === 1 && !approachingTwo ? "text-white" : index === 2 && approachingTwo ? "text-white" : "text-white/22"}>0{index}</span>
             ))}
