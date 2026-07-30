@@ -13,13 +13,13 @@ export function DustField({ reducedMotion }: DustFieldProps) {
   const elapsedTimeRef = useRef(0);
   const { viewport } = useThree();
 
-  const particleCount = viewport.width > 8 ? 120 : viewport.width > 4 ? 80 : 50;
+  const particleCount = viewport.width > 8 ? 88 : viewport.width > 4 ? 58 : 34;
 
   const positions = useMemo(() => {
     const data = new Float32Array(particleCount * 3);
     for (let index = 0; index < particleCount; index += 1) {
       const seed = index * 0.143;
-      const radius = 8 + ((seed % 7) / 7) * 12;
+      const radius = 5 + ((seed % 7) / 7) * 13;
       const theta = ((seed % 29) / 29) * Math.PI * 2;
       const height = (((seed * 3) % 11) / 11) * 10 - 4;
       const variance = (((seed * 5) % 13) / 13) * 1.4;
@@ -52,7 +52,7 @@ export function DustField({ reducedMotion }: DustFieldProps) {
       array[baseIndex + 1] -= delta * velocities[index] * drift;
 
       if (array[baseIndex + 1] < -5) {
-        array[baseIndex + 1] = 7 + Math.random() * 2;
+        array[baseIndex + 1] = 7 + (index % 7) * 0.24;
       }
     }
 
@@ -67,9 +67,9 @@ export function DustField({ reducedMotion }: DustFieldProps) {
       </bufferGeometry>
       <pointsMaterial
         color="#8a857d"
-        size={0.025}
+        size={0.018}
         transparent
-        opacity={0.22}
+        opacity={0.13}
         depthWrite={false}
         sizeAttenuation
       />

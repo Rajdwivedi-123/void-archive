@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Void Archive",
   description:
-    "A calm, modern landing experience for thoughtful digital launches.",
+    "An interactive archive of impossible objects. Object 001: Gravity Core.",
 };
 
 export default function RootLayout({

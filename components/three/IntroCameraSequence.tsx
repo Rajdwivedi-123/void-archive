@@ -19,7 +19,7 @@ export function IntroCameraSequence({
   const { camera } = useThree();
   const hasStartedRef = useRef(false);
   const introCompleteRef = useRef(false);
-  const lookAtTarget = useMemo(() => new THREE.Vector3(0.04, 1.24, 0), []);
+  const lookAtTarget = useMemo(() => new THREE.Vector3(0.18, 2.4, -0.16), []);
 
   useEffect(() => {
     if (!isSceneReady || hasStartedRef.current) return;
@@ -48,7 +48,7 @@ export function IntroCameraSequence({
         camera.position,
         {
           duration: 1.8,
-          x: 0.12,
+          x: 0.18,
           y: 2.1,
           z: 12.2,
           ease: "power2.inOut",
@@ -59,9 +59,9 @@ export function IntroCameraSequence({
         camera.position,
         {
           duration: 1.6,
-          x: 0.18,
-          y: 1.85,
-          z: 8.25,
+          x: 0.12,
+          y: 2.2,
+          z: 8.62,
           ease: "power2.out",
         },
         1.7,
@@ -70,9 +70,9 @@ export function IntroCameraSequence({
         lookAtTarget,
         {
           duration: 1.4,
-          x: 0.06,
-          y: 1.1,
-          z: 0,
+          x: 0.18,
+          y: 2.4,
+          z: -0.16,
           ease: "power2.inOut",
         },
         1.7,
