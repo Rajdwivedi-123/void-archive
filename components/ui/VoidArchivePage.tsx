@@ -9,6 +9,7 @@ import { useLenisScroll } from "@/hooks/useLenisScroll";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useDeviceProfile } from "@/hooks/useDeviceProfile";
 import { useArchiveScroll } from "@/hooks/useArchiveScroll";
+import { JourneyUI } from "./JourneyUI";
 
 export function VoidArchivePage() {
   const [isLoading, setIsLoading] = useState(true);
@@ -16,7 +17,7 @@ export function VoidArchivePage() {
   const [introComplete, setIntroComplete] = useState(false);
   const reducedMotion = useReducedMotion();
   const { tier, hasFinePointer } = useDeviceProfile();
-  const { progressRef, hasEnteredArtifact } = useArchiveScroll();
+  const { progressRef, hasEnteredArtifact, journeyStage } = useArchiveScroll();
 
   useLenisScroll();
 
@@ -42,9 +43,10 @@ export function VoidArchivePage() {
   const handleIntroComplete = useCallback(() => setIntroComplete(true), []);
 
   return (
-    <div className="relative min-h-[180svh] overflow-x-hidden bg-[#030303] text-white">
-      <ArchiveHUD active={introComplete} />
-      <ArtifactInfo isVisible={showInfo} reducedMotion={reducedMotion} isScrolled={hasEnteredArtifact} />
+    <div className="journey-scroll-space relative overflow-x-hidden bg-[#030303] text-white">
+      <ArchiveHUD active={introComplete} stage={journeyStage} />
+      <ArtifactInfo isVisible={showInfo && (journeyStage === "observation" || journeyStage === "approach")} reducedMotion={reducedMotion} isScrolled={hasEnteredArtifact} />
+      <JourneyUI stage={journeyStage} />
       <LoaderOverlay isVisible={isLoading} reducedMotion={reducedMotion} />
       <ArchiveCanvas isSceneReady={!isLoading} reducedMotion={reducedMotion} scrollProgress={progressRef} tier={tier} hasFinePointer={hasFinePointer} onIntroComplete={handleIntroComplete} />
     </div>

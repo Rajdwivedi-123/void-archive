@@ -3,7 +3,7 @@
 import * as THREE from "three";
 
 const floorRings = [1.52, 2.46, 3.62, 5.28];
-const wallBays = [-9.4, -4.7, 0, 4.7, 9.4];
+const wallBays = [-9.4, -4.7, 0, 11.5];
 const lightSeams = [-7.12, 2.34, 7.08];
 
 export function ArchiveChamber() {
@@ -37,12 +37,24 @@ export function ArchiveChamber() {
         </group>
       ))}
 
-      <mesh position={[0, 9.5, -22]}>
-        <boxGeometry args={[32, 19, 2.5]} />
+      <mesh position={[-5.45, 9.5, -22]}>
+        <boxGeometry args={[21.1, 19, 2.5]} />
         <meshStandardMaterial color="#050607" metalness={0.72} roughness={0.42} />
       </mesh>
-      <mesh position={[0, 10, -27]}>
-        <boxGeometry args={[42, 23, 2]} />
+      <mesh position={[12.45, 9.5, -22]}>
+        <boxGeometry args={[7.1, 19, 2.5]} />
+        <meshStandardMaterial color="#050607" metalness={0.72} roughness={0.42} />
+      </mesh>
+      <mesh position={[6.8, 13.3, -22]}>
+        <boxGeometry args={[3.8, 11.4, 2.5]} />
+        <meshStandardMaterial color="#07090a" metalness={0.78} roughness={0.34} />
+      </mesh>
+      <mesh position={[-7.5, 10, -27]}>
+        <boxGeometry args={[27, 23, 2]} />
+        <meshStandardMaterial color="#010202" metalness={0.42} roughness={0.68} />
+      </mesh>
+      <mesh position={[15.9, 10, -27]}>
+        <boxGeometry args={[10.2, 23, 2]} />
         <meshStandardMaterial color="#010202" metalness={0.42} roughness={0.68} />
       </mesh>
       {wallBays.map((x, index) => (

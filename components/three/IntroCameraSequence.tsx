@@ -29,7 +29,7 @@ export function IntroCameraSequence({
     camera.lookAt(lookAtTarget);
 
     if (reducedMotion) {
-      camera.position.set(0.15, 1.7, 8.2);
+      camera.position.set(0.12, 2.2, 8.62);
       camera.lookAt(lookAtTarget);
       introCompleteRef.current = true;
       onIntroComplete();

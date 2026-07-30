@@ -3,7 +3,6 @@
 import { Suspense, useState } from "react";
 import type { MutableRefObject } from "react";
 import { ArchiveChamber } from "./ArchiveChamber";
-import { CameraRig } from "./CameraRig";
 import { GravityCore } from "./gravity-core/GravityCore";
 import { DustField } from "./DustField";
 import { Environment } from "./Environment";
@@ -11,6 +10,8 @@ import { IntroCameraSequence } from "./IntroCameraSequence";
 import { Lighting } from "./Lighting";
 import { PostProcessing } from "./PostProcessing";
 import type { DeviceTier } from "@/hooks/useDeviceProfile";
+import { ArchiveJourney } from "./journey/ArchiveJourney";
+import { JourneyCamera } from "./journey/JourneyCamera";
 
 type ExperienceProps = {
   isSceneReady: boolean;
@@ -29,6 +30,7 @@ export function Experience({ isSceneReady, reducedMotion, scrollProgress, tier, 
       <color attach="background" args={["#010202"]} />
       <fog attach="fog" args={["#010202", 8.5, 30]} />
       <ArchiveChamber />
+      <ArchiveJourney tier={tier} reducedMotion={reducedMotion} scrollProgress={scrollProgress} />
       <GravityCore
         active={introComplete}
         reducedMotion={reducedMotion}
@@ -37,7 +39,7 @@ export function Experience({ isSceneReady, reducedMotion, scrollProgress, tier, 
         hasFinePointer={hasFinePointer}
       />
       <DustField reducedMotion={reducedMotion} />
-      <CameraRig reducedMotion={reducedMotion} introComplete={introComplete} scrollProgress={scrollProgress} tier={tier} />
+      <JourneyCamera reducedMotion={reducedMotion} introComplete={introComplete} scrollProgress={scrollProgress} tier={tier} />
       <Lighting reducedMotion={reducedMotion} />
       <Environment />
       <IntroCameraSequence

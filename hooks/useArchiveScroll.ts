@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { getJourneyStage, type JourneyStage } from "@/utils/journey";
 
 export function useArchiveScroll() {
   const progressRef = useRef(0);
   const [hasEnteredArtifact, setHasEnteredArtifact] = useState(false);
+  const [journeyStage, setJourneyStage] = useState<JourneyStage>("observation");
 
   useEffect(() => {
     let frame = 0;
@@ -13,6 +15,10 @@ export function useArchiveScroll() {
       const range = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
       const progress = Math.min(window.scrollY / range, 1);
       progressRef.current = progress;
+      setJourneyStage((current) => {
+        const next = getJourneyStage(progress);
+        return current === next ? current : next;
+      });
       setHasEnteredArtifact((current) => {
         const next = progress > 0.16;
         return current === next ? current : next;
@@ -30,5 +36,5 @@ export function useArchiveScroll() {
     };
   }, []);
 
-  return { progressRef, hasEnteredArtifact };
+  return { progressRef, hasEnteredArtifact, journeyStage };
 }
