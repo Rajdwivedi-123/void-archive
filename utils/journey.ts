@@ -5,7 +5,9 @@ export type JourneyStage =
   | "exit"
   | "corridor"
   | "deep-archive"
-  | "object-two";
+  | "object-two-arrival"
+  | "object-two-activation"
+  | "object-two-inspection";
 
 export const journeyThresholds: Array<{ stage: JourneyStage; start: number }> = [
   { stage: "observation", start: 0 },
@@ -14,7 +16,9 @@ export const journeyThresholds: Array<{ stage: JourneyStage; start: number }> = 
   { stage: "exit", start: 0.38 },
   { stage: "corridor", start: 0.5 },
   { stage: "deep-archive", start: 0.75 },
-  { stage: "object-two", start: 0.9 },
+  { stage: "object-two-arrival", start: 0.84 },
+  { stage: "object-two-activation", start: 0.9 },
+  { stage: "object-two-inspection", start: 0.955 },
 ];
 
 export function getJourneyStage(progress: number): JourneyStage {

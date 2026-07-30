@@ -1,9 +1,11 @@
 import type { JourneyStage } from "@/utils/journey";
+import { liquidMirrorArtifact } from "@/artifacts/registry";
 
 type ArchiveHUDProps = { active: boolean; stage: JourneyStage };
 
 export function ArchiveHUD({ active, stage }: ArchiveHUDProps) {
-  const approachingTwo = stage === "deep-archive" || stage === "object-two";
+  const objectTwoActive = stage.startsWith("object-two");
+  const approachingTwo = stage === "deep-archive" || objectTwoActive;
   const inTransit = ["departure", "exit", "corridor", "deep-archive"].includes(stage);
   return (
     <div className="pointer-events-none fixed inset-0 z-20 flex flex-col justify-between p-4 text-[10px] uppercase tracking-[0.34em] text-white/72 sm:p-6 lg:p-8">
@@ -25,13 +27,13 @@ export function ArchiveHUD({ active, stage }: ArchiveHUDProps) {
         <div className="max-w-[13rem] border-l border-white/15 pl-3">
           <p className="flex items-center gap-2 font-semibold text-white/82">
             <span className={`h-1 w-1 rounded-full ${active ? "status-pulse bg-white/75" : "bg-white/25"}`} />
-            {inTransit ? "ARCHIVE LINK / ACTIVE" : `CONTAINMENT / ${active ? "ACTIVE" : "STANDBY"}`}
+            {inTransit ? "ARCHIVE LINK / ACTIVE" : objectTwoActive ? `${liquidMirrorArtifact.containment} / ACTIVE` : `CONTAINMENT / ${active ? "ACTIVE" : "STANDBY"}`}
           </p>
-          <p className="mt-2 text-[9px] leading-5 tracking-[0.26em] text-white/38">{inTransit ? "DEPTH 02  /  ACCESS RESTRICTED" : `SECTOR G-01  /  FIELD LOCK ${active ? "NOMINAL" : "PENDING"}`}</p>
+          <p className="mt-2 text-[9px] leading-5 tracking-[0.26em] text-white/38">{inTransit ? "DEPTH 02  /  ACCESS RESTRICTED" : objectTwoActive ? "SECTOR M-02  /  OBSERVATION LIVE" : `SECTOR G-01  /  FIELD LOCK ${active ? "NOMINAL" : "PENDING"}`}</p>
         </div>
         <div className="text-right text-white/44">
-          <p>{stage === "object-two" ? "LIMIT" : "SCROLL"}</p>
-          <p className="mt-2 text-xs">{stage === "object-two" ? "02" : "↓"}</p>
+          <p>{stage === "object-two-inspection" ? "HOLD" : "SCROLL"}</p>
+          <p className="mt-2 text-xs">{objectTwoActive ? "02" : "↓"}</p>
         </div>
       </div>
     </div>

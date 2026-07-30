@@ -30,7 +30,7 @@ export function Experience({ isSceneReady, reducedMotion, scrollProgress, tier, 
       <color attach="background" args={["#010202"]} />
       <fog attach="fog" args={["#010202", 8.5, 30]} />
       <ArchiveChamber />
-      <ArchiveJourney tier={tier} reducedMotion={reducedMotion} scrollProgress={scrollProgress} />
+      <ArchiveJourney tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} />
       <GravityCore
         active={introComplete}
         reducedMotion={reducedMotion}
