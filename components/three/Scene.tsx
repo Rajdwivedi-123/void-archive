@@ -11,6 +11,7 @@ type SceneProps = {
 
 export function Scene({ isSceneReady, reducedMotion }: SceneProps) {
   const groupRef = useRef<THREE.Group>(null);
+  const elapsedTimeRef = useRef(0);
 
   const geometry = useMemo(
     () => new THREE.TorusKnotGeometry(1.25, 0.26, 220, 20),
@@ -31,10 +32,11 @@ export function Scene({ isSceneReady, reducedMotion }: SceneProps) {
     [],
   );
 
-  useFrame(({ clock }) => {
+  useFrame((_, delta) => {
     if (!groupRef.current) return;
 
-    const t = clock.elapsedTime;
+    elapsedTimeRef.current += delta;
+    const t = elapsedTimeRef.current;
     groupRef.current.rotation.x = reducedMotion
       ? 0.25 + Math.sin(t * 0.35) * 0.03
       : 0.25 + Math.sin(t * 0.35) * 0.05;

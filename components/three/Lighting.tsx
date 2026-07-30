@@ -8,19 +8,29 @@ type LightingProps = {
 };
 
 export function Lighting({ reducedMotion }: LightingProps) {
-  const ambient = useMemo(() => new THREE.Color("#121212"), []);
+  const ambient = useMemo(() => new THREE.Color("#0b0b0b"), []);
 
   return (
     <>
-      <ambientLight color={ambient} intensity={0.65} />
+      <ambientLight color={ambient} intensity={0.45} />
       <directionalLight
-        color="#f3f0ea"
-        intensity={reducedMotion ? 1.1 : 1.45}
-        position={[4, 6, 6]}
+        color="#f1e8dc"
+        intensity={reducedMotion ? 0.7 : 1.15}
+        position={[6, 8, 6]}
         castShadow={false}
       />
-      <pointLight color="#bcb2a5" intensity={1.2} position={[-3, 2, 3]} />
-      <hemisphereLight color="#f7f2eb" groundColor="#060606" intensity={0.8} />
+      <spotLight
+        color="#f6efe6"
+        intensity={reducedMotion ? 0.6 : 1}
+        position={[0, 8, -6]}
+        angle={0.28}
+        penumbra={0.35}
+        distance={28}
+        castShadow={false}
+      />
+      <pointLight color="#b3a79b" intensity={0.8} position={[-3, 4, 3]} />
+      <pointLight color="#59504a" intensity={0.45} position={[2, 2.2, 1]} />
+      <hemisphereLight color="#f5efe5" groundColor="#050505" intensity={0.35} />
     </>
   );
 }
