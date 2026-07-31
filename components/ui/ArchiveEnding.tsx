@@ -5,9 +5,10 @@ import type { JourneyStage } from "@/utils/journey";
 type ArchiveEndingProps = {
   stage: JourneyStage;
   reducedMotion: boolean;
+  onOpenArchive: () => void;
 };
 
-export function ArchiveEnding({ stage, reducedMotion }: ArchiveEndingProps) {
+export function ArchiveEnding({ stage, reducedMotion, onOpenArchive }: ArchiveEndingProps) {
   const resolving = stage === "archive-resolution";
   const complete = stage === "session-complete";
   const visible = resolving || complete;
@@ -30,6 +31,14 @@ export function ArchiveEnding({ stage, reducedMotion }: ArchiveEndingProps) {
           </div>
           <p className="mt-10 text-[11px] tracking-[0.5em] text-white/82">VOID ARCHIVE</p>
           <p className="mx-auto mt-3 max-w-[18rem] text-[8px] leading-4 tracking-[0.22em] text-white/28 sm:max-w-none sm:text-[7px] sm:tracking-[0.36em]">ARCHIVE SESSION COMPLETE / EXPERIMENTAL WEBGL EXPERIENCE</p>
+          <button
+            className="pointer-events-auto mt-7 min-h-11 border border-white/20 px-6 text-[8px] tracking-[0.34em] text-white/64 transition-colors hover:border-white/48 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+            onClick={onOpenArchive}
+            tabIndex={complete ? 0 : -1}
+            type="button"
+          >
+            OPEN ARCHIVE
+          </button>
         </div>
       </div>
     </div>

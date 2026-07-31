@@ -12,6 +12,7 @@ import { GravityParticles } from "./GravityParticles";
 import { GravityRings } from "./GravityRings";
 import { OrbitalFragments } from "./OrbitalFragments";
 import type { ActivationState } from "./types";
+import type { InspectionControlRef } from "@/artifacts/inspection";
 
 type GravityCoreProps = {
   active: boolean;
@@ -19,6 +20,7 @@ type GravityCoreProps = {
   scrollProgress: React.MutableRefObject<number>;
   tier: DeviceTier;
   hasFinePointer: boolean;
+  inspection: InspectionControlRef;
 };
 
 const stableState: ActivationState = {
@@ -34,7 +36,7 @@ const stableState: ActivationState = {
   sweep: 0,
 };
 
-export function GravityCore({ active, reducedMotion, scrollProgress, tier, hasFinePointer }: GravityCoreProps) {
+export function GravityCore({ active, reducedMotion, scrollProgress, tier, hasFinePointer, inspection }: GravityCoreProps) {
   const groupRef = useRef<THREE.Group>(null);
   const activation = useRef<ActivationState>(reducedMotion ? { ...stableState } : {
     outer: 0,
@@ -76,17 +78,31 @@ export function GravityCore({ active, reducedMotion, scrollProgress, tier, hasFi
 
   useFrame(() => {
     if (!groupRef.current) return;
-    groupRef.current.visible = scrollProgress.current < 0.39;
+    const inspecting = inspection.current.active && inspection.current.artifactId === "001";
+    groupRef.current.visible = scrollProgress.current < 0.39 || inspecting;
     if (!groupRef.current.visible) return;
+    if (inspecting) {
+      const intensity = inspection.current.primary;
+      activation.current.outer = 1;
+      activation.current.orbitals = 1;
+      activation.current.core = 1;
+      activation.current.fragments = 1;
+      activation.current.debris = 1;
+      activation.current.field = 0.72 + intensity * 0.28;
+      activation.current.energy = 0.68 + intensity * 0.32;
+      activation.current.light = 0.62 + intensity * 0.38;
+      activation.current.compression = 0.08 + intensity * 0.46;
+    }
     const pointerEnabled = active && hasFinePointer && tier === "desktop" && !reducedMotion;
-    const pointerX = pointerEnabled ? pointer.x * 0.045 : 0;
-    const pointerY = pointerEnabled ? pointer.y * 0.025 : 0;
+    const pointerX = inspecting ? inspection.current.pointerX * 0.075 : pointerEnabled ? pointer.x * 0.045 : 0;
+    const pointerY = inspecting ? inspection.current.pointerY * 0.045 : pointerEnabled ? pointer.y * 0.025 : 0;
     groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, -0.07 + pointerX, 0.025);
     groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, pointerY, 0.025);
     groupRef.current.position.x = tier === "mobile" ? 0 : 0.48;
     groupRef.current.position.y = 2.58 + scrollProgress.current * 0.08;
     const baseScale = tier === "mobile" ? 0.7 : tier === "tablet" ? 0.84 : 1;
-    groupRef.current.scale.setScalar(baseScale * (1 + scrollProgress.current * 0.035));
+    const inspectionScale = inspecting ? 1 - inspection.current.primary * 0.045 : 1;
+    groupRef.current.scale.setScalar(baseScale * (1 + scrollProgress.current * 0.035) * inspectionScale);
   });
 
   const motionProps = { activation, reducedMotion, scrollProgress };

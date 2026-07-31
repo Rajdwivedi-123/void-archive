@@ -8,12 +8,14 @@ import type { DeviceTier } from "@/hooks/useDeviceProfile";
 import { neuralRelicArtifact } from "@/artifacts/registry";
 import { sampleArtifactLifecycle } from "@/artifacts/lifecycle";
 import { neuralFragmentShader, neuralVertexShader } from "./shaders/neuralShaders";
+import type { InspectionControlRef } from "@/artifacts/inspection";
 
 type NeuralRelicProps = {
   tier: DeviceTier;
   reducedMotion: boolean;
   hasFinePointer: boolean;
   scrollProgress: MutableRefObject<number>;
+  inspection: InspectionControlRef;
 };
 
 type NodeDefinition = {
@@ -78,7 +80,7 @@ const signalRoutes = [0, 4, 7, 10, 13];
 
 const smootherRange = (value: number, from: number, to: number) => THREE.MathUtils.smoothstep(value, from, to);
 
-export function NeuralRelic({ tier, reducedMotion, hasFinePointer, scrollProgress }: NeuralRelicProps) {
+export function NeuralRelic({ tier, reducedMotion, hasFinePointer, scrollProgress, inspection }: NeuralRelicProps) {
   const rootRef = useRef<THREE.Group>(null);
   const nodeRefs = useRef<Array<THREE.Mesh | null>>([]);
   const branchRefs = useRef<Array<THREE.Group | null>>([]);
@@ -109,14 +111,16 @@ export function NeuralRelic({ tier, reducedMotion, hasFinePointer, scrollProgres
     if (!rootRef.current) return;
     const progress = scrollProgress.current;
     const lifecycle = sampleArtifactLifecycle(neuralRelicArtifact, progress);
+    const inspecting = inspection.current.active && inspection.current.artifactId === "004";
+    const activation = Math.max(lifecycle.activation, inspecting ? 1 : 0);
     const motion = reducedMotion ? 0 : 1;
     timeRef.current += delta * motion;
-    const observing = lifecycle.activation > 0.45;
+    const observing = activation > 0.45;
     adaptationRef.current = THREE.MathUtils.damp(adaptationRef.current, observing ? 1 : 0, observing ? 0.32 : 2.5, delta);
     const adaptation = adaptationRef.current;
     const pointerEnabled = tier === "desktop" && hasFinePointer && !reducedMotion;
-    pointerRef.current.x = THREE.MathUtils.damp(pointerRef.current.x, pointerEnabled ? pointer.x : 0, 3.2, delta);
-    pointerRef.current.y = THREE.MathUtils.damp(pointerRef.current.y, pointerEnabled ? pointer.y : 0, 3.2, delta);
+    pointerRef.current.x = THREE.MathUtils.damp(pointerRef.current.x, inspecting ? inspection.current.pointerX : pointerEnabled ? pointer.x : 0, 3.2, delta);
+    pointerRef.current.y = THREE.MathUtils.damp(pointerRef.current.y, inspecting ? inspection.current.pointerY : pointerEnabled ? pointer.y : 0, 3.2, delta);
 
     activeBranchIndices.forEach((branchIndex, visibleIndex) => {
       const material = materialRefs.current[visibleIndex];
@@ -124,12 +128,12 @@ export function NeuralRelic({ tier, reducedMotion, hasFinePointer, scrollProgres
       const isSignature = branchIndex === branchPairs.length - 1;
       const stagedReveal = isSignature
         ? smootherRange(progress, 0.797, 0.813)
-        : THREE.MathUtils.clamp(lifecycle.activation * 1.55 - visibleIndex * 0.075, 0, 1);
+        : THREE.MathUtils.clamp(activation * 1.55 - visibleIndex * 0.075, 0, 1);
       material.uniforms.uTime.value = timeRef.current;
-      material.uniforms.uGrowth.value = reducedMotion ? lifecycle.activation * 0.35 : lifecycle.activation;
+      material.uniforms.uGrowth.value = reducedMotion ? activation * 0.35 : activation;
       material.uniforms.uReveal.value = stagedReveal;
       material.uniforms.uSignalSpeed.value = reducedMotion ? 0 : THREE.MathUtils.lerp(0.075, 0.24, adaptation);
-      material.uniforms.uResponse.value = adaptation;
+      material.uniforms.uResponse.value = Math.min(1, adaptation + (inspecting ? inspection.current.primary * 0.28 : 0));
       const branch = branchRefs.current[visibleIndex];
       if (branch && branchIndex === 15) {
         branch.rotation.y = THREE.MathUtils.damp(branch.rotation.y, adaptation * 0.018 + pointerRef.current.x * 0.012, 2.4, delta);
@@ -141,8 +145,8 @@ export function NeuralRelic({ tier, reducedMotion, hasFinePointer, scrollProgres
       const reveal = index === 0
         ? Math.max(lifecycle.entry * 0.72, lifecycle.activation)
         : THREE.MathUtils.clamp(lifecycle.activation * 1.65 - index * 0.055, 0, 1);
-      const attention = pointerEnabled ? Math.max(0, 1 - Math.abs(pointerRef.current.x - (nodes[index].position[0] / 4))) : 0;
-      const pulse = reducedMotion ? 1 : 1 + Math.sin(timeRef.current * (0.68 + adaptation * 0.42) + nodes[index].phase) * 0.035 * lifecycle.activation;
+      const attention = pointerEnabled || inspecting ? Math.max(0, 1 - Math.abs(pointerRef.current.x - (nodes[index].position[0] / 4))) : 0;
+      const pulse = reducedMotion ? 1 : 1 + Math.sin(timeRef.current * (0.68 + adaptation * 0.42) + nodes[index].phase) * 0.035 * activation;
       const scale = reveal * pulse * (1 + attention * adaptation * 0.025);
       node.scale.set(nodes[index].scale[0] * scale, nodes[index].scale[1] * scale, nodes[index].scale[2] * scale);
       node.visible = reveal > 0.001;
@@ -156,9 +160,9 @@ export function NeuralRelic({ tier, reducedMotion, hasFinePointer, scrollProgres
       const position = reducedMotion ? 0.62 : (timeRef.current * speed + index * 0.21) % 1;
       branchCurves[route].getPointAt(position, signalVectorRef.current);
       signal.position.copy(signalVectorRef.current);
-      const signalScale = lifecycle.activation * (0.6 + adaptation * 0.55);
+      const signalScale = activation * (0.6 + adaptation * 0.55 + (inspecting ? inspection.current.primary * 0.22 : 0));
       signal.scale.setScalar(signalScale);
-      signal.visible = lifecycle.activation > 0.18;
+      signal.visible = activation > 0.18;
     }
 
     const voidEcho = reducedMotion
@@ -168,7 +172,7 @@ export function NeuralRelic({ tier, reducedMotion, hasFinePointer, scrollProgres
       if (material) material.opacity = voidEcho * (index === 1 ? 0.14 : 0.09);
     });
 
-    rootRef.current.visible = lifecycle.visible > 0.001;
+    rootRef.current.visible = lifecycle.visible > 0.001 || inspecting;
     const breath = reducedMotion ? 1 : 1 + Math.sin(timeRef.current * 0.55) * 0.007 * lifecycle.activation;
     rootRef.current.scale.setScalar((0.88 + lifecycle.entry * 0.12) * breath);
     rootRef.current.rotation.y = THREE.MathUtils.damp(rootRef.current.rotation.y, pointerRef.current.x * 0.01 * adaptation, 2.2, delta);

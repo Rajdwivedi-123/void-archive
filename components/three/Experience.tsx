@@ -12,17 +12,19 @@ import { PostProcessing } from "./PostProcessing";
 import type { DeviceTier } from "@/hooks/useDeviceProfile";
 import { ArchiveJourney } from "./journey/ArchiveJourney";
 import { JourneyCamera } from "./journey/JourneyCamera";
+import type { InspectionControlRef } from "@/artifacts/inspection";
 
 type ExperienceProps = {
   isSceneReady: boolean;
   reducedMotion: boolean;
   scrollProgress: MutableRefObject<number>;
+  inspection: InspectionControlRef;
   tier: DeviceTier;
   hasFinePointer: boolean;
   onIntroComplete: () => void;
 };
 
-export function Experience({ isSceneReady, reducedMotion, scrollProgress, tier, hasFinePointer, onIntroComplete }: ExperienceProps) {
+export function Experience({ isSceneReady, reducedMotion, scrollProgress, inspection, tier, hasFinePointer, onIntroComplete }: ExperienceProps) {
   const [introComplete, setIntroComplete] = useState(false);
 
   return (
@@ -30,16 +32,17 @@ export function Experience({ isSceneReady, reducedMotion, scrollProgress, tier, 
       <color attach="background" args={["#010202"]} />
       <fog attach="fog" args={["#010202", 8.5, 30]} />
       <ArchiveChamber />
-      <ArchiveJourney tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} />
+      <ArchiveJourney tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} inspection={inspection} />
       <GravityCore
         active={introComplete}
         reducedMotion={reducedMotion}
         scrollProgress={scrollProgress}
+        inspection={inspection}
         tier={tier}
         hasFinePointer={hasFinePointer}
       />
       <DustField reducedMotion={reducedMotion} />
-      <JourneyCamera reducedMotion={reducedMotion} introComplete={introComplete} scrollProgress={scrollProgress} tier={tier} />
+      <JourneyCamera reducedMotion={reducedMotion} introComplete={introComplete} scrollProgress={scrollProgress} inspection={inspection} tier={tier} />
       <Lighting reducedMotion={reducedMotion} />
       <Environment />
       <IntroCameraSequence

@@ -13,12 +13,14 @@ import {
   memoryPlaneFragmentShader,
   memoryPlaneVertexShader,
 } from "./shaders/memoryShaders";
+import type { InspectionControlRef } from "@/artifacts/inspection";
 
 type MemoryCrystalProps = {
   tier: DeviceTier;
   reducedMotion: boolean;
   hasFinePointer: boolean;
   scrollProgress: MutableRefObject<number>;
+  inspection: InspectionControlRef;
 };
 
 type MemoryLayer = {
@@ -109,7 +111,7 @@ const fractureGeometries = fractureCurves.map((points, index) => {
 
 const smoothRange = (value: number, from: number, to: number) => THREE.MathUtils.smoothstep(value, from, to);
 
-export function MemoryCrystal({ tier, reducedMotion, hasFinePointer, scrollProgress }: MemoryCrystalProps) {
+export function MemoryCrystal({ tier, reducedMotion, hasFinePointer, scrollProgress, inspection }: MemoryCrystalProps) {
   const rootRef = useRef<THREE.Group>(null);
   const crystalRef = useRef<THREE.Group>(null);
   const outerMaterialRefs = useRef<Array<THREE.ShaderMaterial | null>>([]);
@@ -157,19 +159,22 @@ export function MemoryCrystal({ tier, reducedMotion, hasFinePointer, scrollProgr
     if (!rootRef.current) return;
     const progress = scrollProgress.current;
     const lifecycle = sampleArtifactLifecycle(memoryCrystalArtifact, progress);
+    const inspecting = inspection.current.active && inspection.current.artifactId === "006";
+    const activation = Math.max(lifecycle.activation, inspecting ? 1 : 0);
+    const inspectionAmount = Math.max(lifecycle.inspection, inspecting ? 1 : 0);
     const recallIn = smoothRange(progress, 0.963, 0.968);
     const recallOut = smoothRange(progress, 0.972, 0.976);
-    const recall = recallIn * (1 - recallOut);
+    const recall = Math.max(recallIn * (1 - recallOut), inspecting ? inspection.current.primary : 0);
     const pointerEnabled = tier === "desktop" && hasFinePointer && !reducedMotion;
-    pointerRef.current.x = THREE.MathUtils.damp(pointerRef.current.x, pointerEnabled ? pointer.x : 0, 2.2, delta);
-    pointerRef.current.y = THREE.MathUtils.damp(pointerRef.current.y, pointerEnabled ? pointer.y : 0, 2.2, delta);
+    pointerRef.current.x = THREE.MathUtils.damp(pointerRef.current.x, inspecting ? inspection.current.pointerX : pointerEnabled ? pointer.x : 0, 2.2, delta);
+    pointerRef.current.y = THREE.MathUtils.damp(pointerRef.current.y, inspecting ? inspection.current.pointerY : pointerEnabled ? pointer.y : 0, 2.2, delta);
     timeScaleRef.current = THREE.MathUtils.damp(timeScaleRef.current, reducedMotion ? 0 : recall > 0.35 ? 0.025 : 1, 3.4, delta);
     timeRef.current += delta * timeScaleRef.current;
 
     outerMaterialRefs.current.forEach((material) => {
       if (!material) return;
       material.uniforms.uTime.value = timeRef.current;
-      material.uniforms.uActivation.value = lifecycle.activation;
+      material.uniforms.uActivation.value = activation;
       material.uniforms.uRecall.value = reducedMotion ? lifecycle.inspection * 0.35 : recall;
       material.uniforms.uOpacity.value = lifecycle.visible * (0.44 + lifecycle.activation * 0.42);
       material.uniforms.uPointer.value.copy(pointerRef.current).multiplyScalar(quality.pointerStrength);
@@ -177,17 +182,18 @@ export function MemoryCrystal({ tier, reducedMotion, hasFinePointer, scrollProgr
 
     layerMaterialRefs.current.forEach((material, index) => {
       if (!material) return;
-      const staged = THREE.MathUtils.clamp(lifecycle.activation * 1.8 - index * 0.12, 0, 1);
+      const staged = THREE.MathUtils.clamp(activation * 1.8 - index * 0.12, 0, 1);
+      const stratumFocus = inspecting ? Math.max(0, 1 - Math.abs(memoryLayers[index].depth - inspection.current.primary) * 3.2) : 1;
       material.uniforms.uTime.value = timeRef.current + index * 1.7;
       material.uniforms.uActivation.value = staged;
       material.uniforms.uRecall.value = reducedMotion ? lifecycle.inspection * 0.45 : recall;
-      material.uniforms.uOpacity.value = 0.48 + lifecycle.inspection * 0.34;
+      material.uniforms.uOpacity.value = inspecting ? 0.18 + stratumFocus * 0.72 : 0.48 + inspectionAmount * 0.34;
       material.uniforms.uPointer.value.copy(pointerRef.current).multiplyScalar(quality.pointerStrength);
       const layer = layerRefs.current[index];
       if (layer) {
         const contradiction = index % 2 ? -1 : 1;
         layer.position.x = memoryLayers[index].position[0] + pointerRef.current.x * memoryLayers[index].depth * 0.055 * contradiction;
-        layer.position.z = memoryLayers[index].position[2] + lifecycle.inspection * (index - layerCount / 2) * 0.018;
+        layer.position.z = memoryLayers[index].position[2] + inspectionAmount * (index - layerCount / 2) * 0.018 + (inspecting ? (memoryLayers[index].depth - inspection.current.primary) * 0.32 : 0);
         layer.rotation.y = memoryLayers[index].rotation[1] + pointerRef.current.x * 0.025 * contradiction;
       }
     });
@@ -201,19 +207,20 @@ export function MemoryCrystal({ tier, reducedMotion, hasFinePointer, scrollProgr
 
     if (signatureMaterialRef.current) {
       signatureMaterialRef.current.uniforms.uTime.value = timeRef.current;
-      signatureMaterialRef.current.uniforms.uActivation.value = reducedMotion ? lifecycle.inspection * 0.62 : recall;
-      signatureMaterialRef.current.uniforms.uRecall.value = reducedMotion ? lifecycle.inspection * 0.45 : recall;
-      signatureMaterialRef.current.uniforms.uOpacity.value = reducedMotion ? 0.32 * lifecycle.inspection : recall * 0.92;
+      const classified = inspecting ? THREE.MathUtils.smoothstep(inspection.current.primary, 0.78, 0.94) : 0;
+      signatureMaterialRef.current.uniforms.uActivation.value = reducedMotion ? inspectionAmount * 0.62 : Math.max(recall, classified);
+      signatureMaterialRef.current.uniforms.uRecall.value = reducedMotion ? inspectionAmount * 0.45 : recall;
+      signatureMaterialRef.current.uniforms.uOpacity.value = inspecting ? classified * 0.94 : reducedMotion ? 0.32 * lifecycle.inspection : recall * 0.92;
     }
     if (signatureRef.current) {
-      signatureRef.current.visible = reducedMotion ? lifecycle.inspection > 0.02 : recall > 0.01;
+      signatureRef.current.visible = inspecting ? inspection.current.primary > 0.74 : reducedMotion ? lifecycle.inspection > 0.02 : recall > 0.01;
       signatureRef.current.position.x = -0.18 + pointerRef.current.x * -0.06;
     }
     if (memoryLightRef.current) {
-      memoryLightRef.current.intensity = lifecycle.activation * (0.1 + lifecycle.inspection * 0.42 + recall * 0.3);
+      memoryLightRef.current.intensity = activation * (0.1 + inspectionAmount * 0.42 + recall * 0.3);
     }
 
-    rootRef.current.visible = lifecycle.visible > 0.001;
+    rootRef.current.visible = lifecycle.visible > 0.001 || inspecting;
     rootRef.current.scale.setScalar(0.9 + lifecycle.entry * 0.1);
     if (crystalRef.current) {
       crystalRef.current.rotation.y = THREE.MathUtils.damp(crystalRef.current.rotation.y, -0.12 + lifecycle.inspection * 0.035, 2.4, delta);

@@ -1,7 +1,12 @@
 import type { JourneyStage } from "@/utils/journey";
 import { liquidMirrorArtifact, memoryCrystalArtifact, neuralRelicArtifact, temporalRingArtifact, voidArtifact } from "@/artifacts/registry";
 
-type ArchiveHUDProps = { active: boolean; stage: JourneyStage };
+type ArchiveHUDProps = {
+  active: boolean;
+  stage: JourneyStage;
+  discoveredCount: number;
+  onSelectArtifact: (index: number) => void;
+};
 
 const transitStages: JourneyStage[] = [
   "departure", "exit", "corridor", "deep-archive",
@@ -11,7 +16,7 @@ const transitStages: JourneyStage[] = [
   "object-five-departure", "memory-recovery-passage",
 ];
 
-export function ArchiveHUD({ active, stage }: ArchiveHUDProps) {
+export function ArchiveHUD({ active, stage, discoveredCount, onSelectArtifact }: ArchiveHUDProps) {
   const objectTwoActive = stage.startsWith("object-two");
   const objectThreeActive = stage.startsWith("object-three");
   const objectFourActive = stage.startsWith("object-four");
@@ -52,7 +57,15 @@ export function ArchiveHUD({ active, stage }: ArchiveHUDProps) {
               const lineTone = ending ? "bg-white/30" : index < activeIndex ? "bg-white/20" : "bg-white/8";
               return (
                 <span key={index} className="flex items-center">
-                  <span className={`transition-colors duration-1000 ${numberTone}`}>0{index}</span>
+                  <button
+                    aria-label={index <= discoveredCount ? `Return to discovered artifact ${String(index).padStart(2, "0")}` : `Artifact ${String(index).padStart(2, "0")} restricted`}
+                    className={`pointer-events-auto min-h-7 px-0.5 transition-colors duration-1000 disabled:cursor-not-allowed ${numberTone}`}
+                    disabled={index > discoveredCount}
+                    onClick={() => onSelectArtifact(index)}
+                    type="button"
+                  >
+                    0{index}
+                  </button>
                   {index < 6 && <span className={`archive-index-line mx-1.5 h-px w-2.5 transition-colors duration-1000 sm:mx-2 sm:w-4 ${lineTone}`} />}
                 </span>
               );

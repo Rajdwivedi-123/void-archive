@@ -6,11 +6,13 @@ import type { DeviceTier } from "@/hooks/useDeviceProfile";
 import type { MutableRefObject } from "react";
 import * as THREE from "three";
 import { WebGLFallback } from "../ui/WebGLFallback";
+import type { InspectionControlRef } from "@/artifacts/inspection";
 
 type ArchiveCanvasProps = {
   isSceneReady: boolean;
   reducedMotion: boolean;
   scrollProgress: MutableRefObject<number>;
+  inspection: InspectionControlRef;
   tier: DeviceTier;
   hasFinePointer: boolean;
   onIntroComplete: () => void;
@@ -20,6 +22,7 @@ export function ArchiveCanvas({
   isSceneReady,
   reducedMotion,
   scrollProgress,
+  inspection,
   tier,
   hasFinePointer,
   onIntroComplete,
@@ -47,6 +50,7 @@ export function ArchiveCanvas({
             isSceneReady={isSceneReady}
             reducedMotion={reducedMotion}
             scrollProgress={scrollProgress}
+            inspection={inspection}
             tier={tier}
             hasFinePointer={hasFinePointer}
             onIntroComplete={onIntroComplete}

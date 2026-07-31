@@ -8,17 +8,19 @@ import type { DeviceTier } from "@/hooks/useDeviceProfile";
 import { liquidMirrorArtifact } from "@/artifacts/registry";
 import { sampleArtifactLifecycle } from "@/artifacts/lifecycle";
 import { liquidMirrorFragmentShader, liquidMirrorVertexShader } from "./shaders/liquidMirrorShaders";
+import type { InspectionControlRef } from "@/artifacts/inspection";
 
 type LiquidMirrorProps = {
   tier: DeviceTier;
   reducedMotion: boolean;
   hasFinePointer: boolean;
   scrollProgress: MutableRefObject<number>;
+  inspection: InspectionControlRef;
 };
 
 const impossibleRingGeometry = new THREE.TorusGeometry(0.82, 0.018, 5, 40, 4.85);
 
-export function LiquidMirror({ tier, reducedMotion, hasFinePointer, scrollProgress }: LiquidMirrorProps) {
+export function LiquidMirror({ tier, reducedMotion, hasFinePointer, scrollProgress, inspection }: LiquidMirrorProps) {
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const groupRef = useRef<THREE.Group>(null);
   const impossibleRingRef = useRef<THREE.Group>(null);
@@ -48,12 +50,14 @@ export function LiquidMirror({ tier, reducedMotion, hasFinePointer, scrollProgre
     if (!materialRef.current || !groupRef.current) return;
     const progress = scrollProgress.current;
     const lifecycle = sampleArtifactLifecycle(liquidMirrorArtifact, progress);
+    const inspecting = inspection.current.active && inspection.current.artifactId === "002";
+    const inspectAmount = inspecting ? 1 : 0;
     const motionScale = reducedMotion ? liquidMirrorArtifact.reducedMotion.surfaceMotion : 1;
     timeRef.current += delta * motionScale;
 
     const pointerEnabled = hasFinePointer && tier === "desktop" && !reducedMotion;
-    const targetX = pointerEnabled ? pointer.x * quality.pointerStrength : 0;
-    const targetY = pointerEnabled ? pointer.y * quality.pointerStrength : 0;
+    const targetX = inspecting ? inspection.current.pointerX : pointerEnabled ? pointer.x * quality.pointerStrength : 0;
+    const targetY = inspecting ? inspection.current.pointerY : pointerEnabled ? pointer.y * quality.pointerStrength : 0;
     surfacePointerRef.current.x = THREE.MathUtils.damp(surfacePointerRef.current.x, targetX, 5.5, delta);
     surfacePointerRef.current.y = THREE.MathUtils.damp(surfacePointerRef.current.y, targetY, 5.5, delta);
     reflectedPointerRef.current.x = THREE.MathUtils.damp(reflectedPointerRef.current.x, -targetX, 1.15, delta);
@@ -63,7 +67,8 @@ export function LiquidMirror({ tier, reducedMotion, hasFinePointer, scrollProgre
     echoRef.current = THREE.MathUtils.damp(echoRef.current, velocity * 1.6, reducedMotion ? 12 : 0.72, delta);
     lastProgressRef.current = progress;
 
-    const activation = lifecycle.activation;
+    const activation = Math.max(lifecycle.activation, inspectAmount);
+    const inspectionAmount = Math.max(lifecycle.inspection, inspectAmount);
     const ringTrace = reducedMotion
       ? lifecycle.inspection * 0.32
       : THREE.MathUtils.smoothstep(progress, 0.552, 0.558) * (1 - THREE.MathUtils.smoothstep(progress, 0.564, 0.57));
@@ -72,14 +77,14 @@ export function LiquidMirror({ tier, reducedMotion, hasFinePointer, scrollProgre
     materialRef.current.uniforms.uActivation.value = activation;
     materialRef.current.uniforms.uReflection.value = THREE.MathUtils.smoothstep(activation, 0.3, 0.7);
     materialRef.current.uniforms.uInstability.value = THREE.MathUtils.smoothstep(activation, 0.58, 0.95);
-    materialRef.current.uniforms.uInspection.value = lifecycle.inspection;
-    materialRef.current.uniforms.uEcho.value = echoRef.current;
+    materialRef.current.uniforms.uInspection.value = inspectionAmount;
+    materialRef.current.uniforms.uEcho.value = Math.max(echoRef.current, inspecting ? 0.36 + Math.abs(inspection.current.pointerX) * 0.42 : 0);
     materialRef.current.uniforms.uPointer.value.copy(surfacePointerRef.current);
-    materialRef.current.uniforms.uReflectionOffset.value.copy(reflectedPointerRef.current).addScalar((progress - 0.94) * 0.42);
+    materialRef.current.uniforms.uReflectionOffset.value.copy(reflectedPointerRef.current).addScalar((progress - 0.94) * 0.42 + (inspecting ? (inspection.current.primary - 0.5) * 0.28 : 0));
 
     groupRef.current.visible = lifecycle.visible > 0.001;
     groupRef.current.scale.setScalar(0.94 + lifecycle.entry * 0.06);
-    groupRef.current.rotation.y = THREE.MathUtils.damp(groupRef.current.rotation.y, -0.035 + lifecycle.inspection * 0.055, 4.2, delta);
+    groupRef.current.rotation.y = THREE.MathUtils.damp(groupRef.current.rotation.y, -0.035 + inspectionAmount * 0.055 + (inspecting ? (inspection.current.primary - 0.5) * 0.16 : 0), 4.2, delta);
     if (impossibleRingRef.current && impossibleRingMaterialRef.current) {
       impossibleRingRef.current.rotation.z = 0.42 + timeRef.current * 0.025;
       impossibleRingRef.current.position.x = -0.36 + reflectedPointerRef.current.x * 0.08;

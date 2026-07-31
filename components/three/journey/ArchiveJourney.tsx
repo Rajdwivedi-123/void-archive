@@ -19,34 +19,36 @@ import { VoidChamber } from "../void-artifact/VoidChamber";
 import { MemoryRecoveryPassage } from "./MemoryRecoveryPassage";
 import { MemoryCrystal } from "../memory-crystal/MemoryCrystal";
 import { MemoryCrystalChamber } from "../memory-crystal/MemoryCrystalChamber";
+import type { InspectionControlRef } from "@/artifacts/inspection";
 
 type ArchiveJourneyProps = {
   tier: DeviceTier;
   reducedMotion: boolean;
   hasFinePointer: boolean;
   scrollProgress: MutableRefObject<number>;
+  inspection: InspectionControlRef;
 };
 
-export function ArchiveJourney({ tier, reducedMotion, hasFinePointer, scrollProgress }: ArchiveJourneyProps) {
+export function ArchiveJourney({ tier, reducedMotion, hasFinePointer, scrollProgress, inspection }: ArchiveJourneyProps) {
   return (
     <group>
       <ArchiveCorridor tier={tier} />
       <SectorTransition />
       <DeepArchive tier={tier} />
       <LiquidMirrorChamber tier={tier} scrollProgress={scrollProgress} />
-      <LiquidMirror tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} />
+      <LiquidMirror tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} inspection={inspection} />
       <MeasurementPassage tier={tier} />
       <TemporalRingChamber tier={tier} scrollProgress={scrollProgress} />
-      <TemporalRing tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} />
+      <TemporalRing tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} inspection={inspection} />
       <BioIsolationPassage tier={tier} />
       <NeuralRelicChamber tier={tier} reducedMotion={reducedMotion} scrollProgress={scrollProgress} />
-      <NeuralRelic tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} />
+      <NeuralRelic tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} inspection={inspection} />
       <GeometricIsolationPassage tier={tier} />
       <VoidChamber tier={tier} reducedMotion={reducedMotion} scrollProgress={scrollProgress} />
-      <VoidArtifact tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} />
+      <VoidArtifact tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} inspection={inspection} />
       <MemoryRecoveryPassage tier={tier} />
       <MemoryCrystalChamber tier={tier} reducedMotion={reducedMotion} scrollProgress={scrollProgress} />
-      <MemoryCrystal tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} />
+      <MemoryCrystal tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} inspection={inspection} />
     </group>
   );
 }

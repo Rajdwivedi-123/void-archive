@@ -6,11 +6,13 @@ import * as THREE from "three";
 import type { DeviceTier } from "@/hooks/useDeviceProfile";
 import type { MutableRefObject } from "react";
 import { liquidMirrorArtifact, memoryCrystalArtifact, neuralRelicArtifact, temporalRingArtifact, voidArtifact } from "@/artifacts/registry";
+import type { InspectionControlRef } from "@/artifacts/inspection";
 
 type JourneyCameraProps = {
   introComplete: boolean;
   reducedMotion: boolean;
   scrollProgress: MutableRefObject<number>;
+  inspection: InspectionControlRef;
   tier: DeviceTier;
 };
 
@@ -105,7 +107,7 @@ function interpolateFrame(frames: CameraKeyframe[], progress: number, position: 
   };
 }
 
-export function JourneyCamera({ introComplete, reducedMotion, scrollProgress, tier }: JourneyCameraProps) {
+export function JourneyCamera({ introComplete, reducedMotion, scrollProgress, inspection, tier }: JourneyCameraProps) {
   const { pointer } = useThree();
   const smoothedProgressRef = useRef(0);
   const vectorsRef = useRef({
@@ -121,10 +123,18 @@ export function JourneyCamera({ introComplete, reducedMotion, scrollProgress, ti
     smoothedProgressRef.current = THREE.MathUtils.damp(smoothedProgressRef.current, scrollProgress.current, damping, delta);
     const frames = tier === "mobile" ? mobileFrames : desktopFrames;
     const composition = interpolateFrame(frames, smoothedProgressRef.current, desiredPosition, desiredTarget);
+    const inspectState = inspection.current;
     const inspectionInfluence = THREE.MathUtils.clamp(1 - smoothedProgressRef.current / 0.28, 0, 1);
     if (!reducedMotion && tier === "desktop") {
       desiredPosition.x += pointer.x * 0.045 * inspectionInfluence;
       desiredPosition.y += pointer.y * 0.02 * inspectionInfluence;
+    }
+    if (inspectState.active && !reducedMotion) {
+      const range = tier === "desktop" ? 0.32 : tier === "tablet" ? 0.18 : 0.08;
+      desiredPosition.x += inspectState.pointerX * range;
+      desiredPosition.y += inspectState.pointerY * range * 0.48;
+      desiredTarget.x -= inspectState.pointerX * range * 0.18;
+      desiredTarget.y -= inspectState.pointerY * range * 0.12;
     }
     const positionAlpha = 1 - Math.exp(-delta * (reducedMotion ? 12 : 7));
     state.camera.position.lerp(desiredPosition, positionAlpha);
@@ -132,7 +142,8 @@ export function JourneyCamera({ introComplete, reducedMotion, scrollProgress, ti
     state.camera.lookAt(smoothedTarget);
     if (!reducedMotion && composition.roll !== 0) state.camera.rotateZ(composition.roll);
     if (state.camera instanceof THREE.PerspectiveCamera) {
-      const nextFov = THREE.MathUtils.damp(state.camera.fov, composition.fov, 6, delta);
+      const inspectFov = inspectState.active ? composition.fov - (tier === "mobile" ? 0.5 : 1.1) : composition.fov;
+      const nextFov = THREE.MathUtils.damp(state.camera.fov, inspectFov, 6, delta);
       if (Math.abs(nextFov - state.camera.fov) > 0.001) {
         state.camera.fov = nextFov;
         state.camera.updateProjectionMatrix();

@@ -13,12 +13,14 @@ import {
   voidParticleVertexShader,
   voidVertexShader,
 } from "./shaders/voidShaders";
+import type { InspectionControlRef } from "@/artifacts/inspection";
 
 type VoidArtifactProps = {
   tier: DeviceTier;
   reducedMotion: boolean;
   hasFinePointer: boolean;
   scrollProgress: MutableRefObject<number>;
+  inspection: InspectionControlRef;
 };
 
 const boundaryPoints = [
@@ -54,7 +56,7 @@ const seamGeometries = seamDefinitions.map((points, index) => {
 
 const smoothRange = (value: number, from: number, to: number) => THREE.MathUtils.smoothstep(value, from, to);
 
-export function VoidArtifact({ tier, reducedMotion, hasFinePointer, scrollProgress }: VoidArtifactProps) {
+export function VoidArtifact({ tier, reducedMotion, hasFinePointer, scrollProgress, inspection }: VoidArtifactProps) {
   const rootRef = useRef<THREE.Group>(null);
   const boundaryRef = useRef<THREE.Mesh>(null);
   const boundaryMaterialRef = useRef<THREE.ShaderMaterial>(null);
@@ -107,6 +109,9 @@ export function VoidArtifact({ tier, reducedMotion, hasFinePointer, scrollProgre
     if (!rootRef.current || !boundaryMaterialRef.current) return;
     const progress = scrollProgress.current;
     const lifecycle = sampleArtifactLifecycle(voidArtifact, progress);
+    const inspecting = inspection.current.active && inspection.current.artifactId === "005";
+    const activation = Math.max(lifecycle.activation, inspecting ? 1 : 0);
+    const inspectionAmount = Math.max(lifecycle.inspection, inspecting ? 1 : 0);
     const signatureIn = smoothRange(progress, 0.899, 0.905);
     const signatureOut = smoothRange(progress, 0.907, 0.913);
     const collapse = signatureIn * (1 - signatureOut);
@@ -114,12 +119,12 @@ export function VoidArtifact({ tier, reducedMotion, hasFinePointer, scrollProgre
     timeRef.current += delta * motion;
 
     const pointerEnabled = tier === "desktop" && hasFinePointer && !reducedMotion;
-    pointerRef.current.x = THREE.MathUtils.damp(pointerRef.current.x, pointerEnabled ? pointer.x : 0, 1.8, delta);
-    pointerRef.current.y = THREE.MathUtils.damp(pointerRef.current.y, pointerEnabled ? pointer.y : 0, 1.8, delta);
+    pointerRef.current.x = THREE.MathUtils.damp(pointerRef.current.x, inspecting ? inspection.current.pointerX : pointerEnabled ? pointer.x : 0, 1.8, delta);
+    pointerRef.current.y = THREE.MathUtils.damp(pointerRef.current.y, inspecting ? inspection.current.pointerY : pointerEnabled ? pointer.y : 0, 1.8, delta);
 
     const material = boundaryMaterialRef.current;
     material.uniforms.uTime.value = timeRef.current;
-    material.uniforms.uActivation.value = Math.max(lifecycle.entry * 0.4, lifecycle.activation);
+    material.uniforms.uActivation.value = Math.max(lifecycle.entry * 0.4, activation);
     material.uniforms.uCollapse.value = reducedMotion ? 0.32 * lifecycle.inspection : collapse;
     material.uniforms.uOpacity.value = lifecycle.visible * (0.78 + lifecycle.activation * 0.21);
     material.uniforms.uPointer.value.copy(pointerRef.current).multiplyScalar(quality.pointerStrength);
@@ -134,16 +139,16 @@ export function VoidArtifact({ tier, reducedMotion, hasFinePointer, scrollProgre
       if (!seamMaterial) return;
       const staged = THREE.MathUtils.clamp(lifecycle.entry * 2.1 - index * 0.13, 0, 1);
       const breakPattern = index % 2 ? 0.58 : 1;
-      seamMaterial.opacity = staged * (0.08 + lifecycle.activation * 0.28 + collapse * 0.24) * breakPattern;
+      seamMaterial.opacity = Math.max(staged, inspecting ? 1 : 0) * (0.08 + activation * 0.28 + collapse * 0.24 + (inspecting && inspection.current.scanner ? 0.18 : 0)) * breakPattern;
     });
 
     const positions = particleData.positions;
     particleData.base.forEach((particle, index) => {
       const drift = reducedMotion ? particle.angle : particle.angle + timeRef.current * particle.speed;
-      const inward = lifecycle.activation * (0.42 + Math.sin(particle.angle * 2.1) * 0.12);
+      const inward = activation * (0.42 + Math.sin(particle.angle * 2.1) * 0.12);
       const bentAngle = drift + inward * Math.sin(drift * 1.7) * 0.52;
       let radius = particle.radius - inward * 0.9;
-      const swallowed = radius < 3.34 && lifecycle.activation > 0.48;
+      const swallowed = radius < 3.34 && activation > 0.48;
       if (swallowed) radius = 0;
       const offset = index * 3;
       positions[offset] = swallowed ? 100 : Math.cos(bentAngle) * radius + Math.sin(particle.height) * inward * 0.34;
@@ -151,9 +156,9 @@ export function VoidArtifact({ tier, reducedMotion, hasFinePointer, scrollProgre
       positions[offset + 2] = swallowed ? 100 : particle.depth - Math.sin(bentAngle) * inward * 0.5;
     });
     if (particlesGeometryRef.current) particlesGeometryRef.current.attributes.position.needsUpdate = true;
-    if (particlesMaterialRef.current) particlesMaterialRef.current.uniforms.uOpacity.value = lifecycle.activation * (0.12 + lifecycle.inspection * 0.18);
+    if (particlesMaterialRef.current) particlesMaterialRef.current.uniforms.uOpacity.value = activation * (0.12 + inspectionAmount * 0.18 + (inspecting && inspection.current.scanner ? 0.12 : 0));
 
-    rootRef.current.visible = lifecycle.visible > 0.001;
+    rootRef.current.visible = lifecycle.visible > 0.001 || inspecting;
     rootRef.current.rotation.y = THREE.MathUtils.damp(rootRef.current.rotation.y, -0.055 + pointerRef.current.x * 0.006, 2.2, delta);
   });
 

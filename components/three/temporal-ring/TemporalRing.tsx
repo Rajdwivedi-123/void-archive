@@ -8,12 +8,14 @@ import type { DeviceTier } from "@/hooks/useDeviceProfile";
 import { temporalRingArtifact } from "@/artifacts/registry";
 import { sampleArtifactLifecycle } from "@/artifacts/lifecycle";
 import { temporalFragmentShader, temporalVertexShader } from "./shaders/temporalShaders";
+import type { InspectionControlRef } from "@/artifacts/inspection";
 
 type TemporalRingProps = {
   tier: DeviceTier;
   reducedMotion: boolean;
   hasFinePointer: boolean;
   scrollProgress: MutableRefObject<number>;
+  inspection: InspectionControlRef;
 };
 
 type ArcDefinition = {
@@ -60,7 +62,7 @@ function applyArcState(group: THREE.Group, arc: ArcDefinition, time: number, sep
   );
 }
 
-export function TemporalRing({ tier, reducedMotion, hasFinePointer, scrollProgress }: TemporalRingProps) {
+export function TemporalRing({ tier, reducedMotion, hasFinePointer, scrollProgress, inspection }: TemporalRingProps) {
   const rootRef = useRef<THREE.Group>(null);
   const currentRefs = useRef<Array<THREE.Group | null>>([]);
   const materialRefs = useRef<Array<THREE.ShaderMaterial | null>>([]);
@@ -89,21 +91,25 @@ export function TemporalRing({ tier, reducedMotion, hasFinePointer, scrollProgre
     if (!rootRef.current) return;
     const progress = scrollProgress.current;
     const lifecycle = sampleArtifactLifecycle(temporalRingArtifact, progress);
+    const inspecting = inspection.current.active && inspection.current.artifactId === "003";
+    const inspectionOffset = inspecting ? (inspection.current.primary - 0.5) * 2 : 0;
+    const activation = Math.max(lifecycle.activation, inspecting ? 1 : 0);
+    const inspectionAmount = Math.max(lifecycle.inspection, inspecting ? 1 : 0);
     const slowIn = smoothRange(progress, 0.669, 0.677);
     const slowOut = smoothRange(progress, 0.683, 0.691);
     const slow = slowIn * (1 - slowOut);
-    const future = smoothRange(progress, 0.671, 0.68) * (1 - smoothRange(progress, 0.686, 0.694));
+    const future = Math.max(smoothRange(progress, 0.671, 0.68) * (1 - smoothRange(progress, 0.686, 0.694)), Math.max(inspectionOffset, 0));
     const catchUp = smoothRange(progress, 0.684, 0.695);
     const collapse = smoothRange(progress, 0.693, 0.704);
-    const targetTimeScale = reducedMotion ? 0 : THREE.MathUtils.lerp(1, 0.08, slow);
+    const targetTimeScale = reducedMotion || inspecting ? 0 : THREE.MathUtils.lerp(1, 0.08, slow);
     timeScaleRef.current = THREE.MathUtils.damp(timeScaleRef.current, targetTimeScale, 5, delta);
     timeRef.current += delta * timeScaleRef.current;
 
     const pointerEnabled = hasFinePointer && tier === "desktop" && !reducedMotion;
-    pointerRef.current.x = THREE.MathUtils.damp(pointerRef.current.x, pointerEnabled ? pointer.x : 0, 4.5, delta);
-    pointerRef.current.y = THREE.MathUtils.damp(pointerRef.current.y, pointerEnabled ? pointer.y : 0, 4.5, delta);
-    const separation = lifecycle.activation * (0.24 + lifecycle.inspection * 0.42) * (1 - collapse);
-    const currentTime = timeRef.current + catchUp * 0.52;
+    pointerRef.current.x = THREE.MathUtils.damp(pointerRef.current.x, inspecting ? inspection.current.pointerX : pointerEnabled ? pointer.x : 0, 4.5, delta);
+    pointerRef.current.y = THREE.MathUtils.damp(pointerRef.current.y, inspecting ? inspection.current.pointerY : pointerEnabled ? pointer.y : 0, 4.5, delta);
+    const separation = activation * (0.24 + inspectionAmount * 0.42) * (1 - collapse);
+    const currentTime = timeRef.current + catchUp * 0.52 + inspectionOffset * 0.72;
 
     activeArcs.forEach((arc, arcIndex) => {
       const current = currentRefs.current[arcIndex];
@@ -114,7 +120,7 @@ export function TemporalRing({ tier, reducedMotion, hasFinePointer, scrollProgre
       }
       if (material) {
         material.uniforms.uTime.value = currentTime;
-        material.uniforms.uActivation.value = Math.max(lifecycle.entry * 0.38, lifecycle.activation);
+        material.uniforms.uActivation.value = Math.max(lifecycle.entry * 0.38, activation);
         material.uniforms.uFuture.value = future;
         material.uniforms.uOpacity.value = 0.88 + lifecycle.inspection * 0.12;
       }
@@ -134,13 +140,13 @@ export function TemporalRing({ tier, reducedMotion, hasFinePointer, scrollProgre
         if (echoMaterial) {
           const baseOpacity = (reducedMotion ? 0.26 : 0.21) / (1 + echoIndex * 0.72);
           echoMaterial.color.copy(isFutureSample && future > 0.02 ? futureColor : pastColors[Math.min(echoIndex, pastColors.length - 1)]);
-          echoMaterial.opacity = lifecycle.activation * (baseOpacity + (isFutureSample ? future * 0.26 : 0)) * (1 - collapse);
+          echoMaterial.opacity = activation * (baseOpacity + (isFutureSample ? future * 0.26 : 0) + (inspecting && inspectionOffset < 0 ? Math.abs(inspectionOffset) * 0.11 : 0)) * (1 - collapse);
         }
       }
     });
 
     if (futureSliceRef.current && futureSliceMaterialRef.current) {
-      const futurePresence = lifecycle.activation * (0.06 + future * 0.94) * (1 - collapse);
+      const futurePresence = activation * (0.06 + future * 0.94) * (1 - collapse);
       futureSliceRef.current.position.set(0.28 + future * 0.34, 0.16 + future * 0.12, 0.42);
       futureSliceRef.current.rotation.set(-0.1, 0.12, 0.72 + currentTime * 0.045 + future * 0.2);
       futureSliceRef.current.scale.setScalar(0.96 + future * 0.05);
@@ -157,7 +163,7 @@ export function TemporalRing({ tier, reducedMotion, hasFinePointer, scrollProgre
       observerNodeMaterialRef.current.opacity = observerEcho * 0.62;
     }
 
-    rootRef.current.visible = lifecycle.visible > 0.001;
+    rootRef.current.visible = lifecycle.visible > 0.001 || inspecting;
     rootRef.current.scale.setScalar(0.9 + lifecycle.entry * 0.1);
     rootRef.current.rotation.y = THREE.MathUtils.damp(rootRef.current.rotation.y, pointerRef.current.x * 0.018, 4, delta);
   });
