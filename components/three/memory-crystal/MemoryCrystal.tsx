@@ -15,6 +15,7 @@ import {
 } from "./shaders/memoryShaders";
 import type { InspectionControlRef } from "@/artifacts/inspection";
 import type { GraphicsQuality } from "@/hooks/useGraphicsQuality";
+import { useRealitySnapshot } from "@/reality/RealityProvider";
 
 type MemoryCrystalProps = {
   tier: DeviceTier;
@@ -114,6 +115,7 @@ const fractureGeometries = fractureCurves.map((points, index) => {
 const smoothRange = (value: number, from: number, to: number) => THREE.MathUtils.smoothstep(value, from, to);
 
 export function MemoryCrystal({ tier, quality: graphicsQuality, reducedMotion, hasFinePointer, scrollProgress, inspection }: MemoryCrystalProps) {
+  const observer = useRealitySnapshot();
   const rootRef = useRef<THREE.Group>(null);
   const crystalRef = useRef<THREE.Group>(null);
   const outerMaterialRefs = useRef<Array<THREE.ShaderMaterial | null>>([]);
@@ -131,6 +133,8 @@ export function MemoryCrystal({ tier, quality: graphicsQuality, reducedMotion, h
   const premium = graphicsQuality === "high" && tier === "desktop";
   const layerCount = graphicsQuality === "conserve" ? Math.min(3, artifactQuality.memoryLayers ?? 3) : artifactQuality.memoryLayers ?? 3;
   const fractureCount = artifactQuality.memoryFractures ?? 3;
+  const preferredLayer = Math.max(0, Number(observer.recallOrder[0] ?? "001") - 1) % Math.max(1, layerCount);
+  const recallDirection = observer.archetype === "chronologist" ? -1 : observer.archetype === "cartographer" ? 1 : observer.archetype === "interventionist" ? .55 : observer.archetype === "synaptic" ? -.55 : .2;
 
   const outerUniforms = useMemo(() => Array.from({ length: 3 }, () => ({
     uTime: { value: 0 },
@@ -192,17 +196,19 @@ export function MemoryCrystal({ tier, quality: graphicsQuality, reducedMotion, h
       material.uniforms.uTime.value = timeRef.current + index * 1.7;
       material.uniforms.uActivation.value = staged;
       material.uniforms.uRecall.value = reducedMotion ? lifecycle.inspection * 0.45 : recall;
-      material.uniforms.uOpacity.value = missingSpatialLayer ? .025 : inspecting ? 0.18 + stratumFocus * 0.72 : 0.48 + inspectionAmount * 0.34;
+      const recallEmphasis = index === preferredLayer ? 1 : .74;
+      material.uniforms.uOpacity.value = (missingSpatialLayer ? .025 : inspecting ? 0.18 + stratumFocus * 0.72 : 0.48 + inspectionAmount * 0.34) * recallEmphasis;
       material.uniforms.uPointer.value.copy(pointerRef.current).multiplyScalar(artifactQuality.pointerStrength);
       const layer = layerRefs.current[index];
       if (layer) {
         const contradiction = index % 2 ? -1 : 1;
-        layer.position.x = memoryLayers[index].position[0] + pointerRef.current.x * memoryLayers[index].depth * 0.055 * contradiction;
+        layer.position.x = memoryLayers[index].position[0] + (index === preferredLayer ? recallDirection * .32 : -recallDirection * .025) + pointerRef.current.x * memoryLayers[index].depth * 0.055 * contradiction;
         const temporalMisorder = sessionBias > .32 && sessionBias < .54 ? (index % 2 ? -.08 : .08) : 0;
         const impossibleDepth = premium ? (memoryLayers[index].depth - .5) * .46 : 0;
-        layer.position.z = memoryLayers[index].position[2] + impossibleDepth + inspectionAmount * (index - layerCount / 2) * 0.018 + temporalMisorder + (inspecting ? (memoryLayers[index].depth - inspection.current.primary) * (premium ? .52 : .32) : 0);
-        layer.scale.x = memoryLayers[index].scale[0] * (sessionBias < .12 ? .92 : 1);
-        layer.rotation.y = memoryLayers[index].rotation[1] + pointerRef.current.x * 0.025 * contradiction;
+        const personalizedRecall = index === preferredLayer ? .48 * Math.max(.55, observer.observerConfidence) : -.035;
+        layer.position.z = memoryLayers[index].position[2] + impossibleDepth + personalizedRecall + inspectionAmount * (index - layerCount / 2) * 0.018 + temporalMisorder + (inspecting ? (memoryLayers[index].depth - inspection.current.primary) * (premium ? .52 : .32) : 0);
+        layer.scale.x = memoryLayers[index].scale[0] * (sessionBias < .12 ? .92 : index === preferredLayer ? 1.13 : .97);
+        layer.rotation.y = memoryLayers[index].rotation[1] + (index === preferredLayer ? recallDirection * .16 : 0) + pointerRef.current.x * 0.025 * contradiction;
       }
     });
 
@@ -231,7 +237,9 @@ export function MemoryCrystal({ tier, quality: graphicsQuality, reducedMotion, h
     rootRef.current.visible = lifecycle.visible > 0.001 || inspecting;
     rootRef.current.scale.setScalar(0.9 + lifecycle.entry * 0.1);
     if (crystalRef.current) {
-      crystalRef.current.rotation.y = THREE.MathUtils.damp(crystalRef.current.rotation.y, -0.12 + lifecycle.inspection * 0.035, 2.4, delta);
+      crystalRef.current.rotation.y = THREE.MathUtils.damp(crystalRef.current.rotation.y, -0.12 + recallDirection * .24 + lifecycle.inspection * 0.035, 2.4, delta);
+      crystalRef.current.rotation.z = THREE.MathUtils.damp(crystalRef.current.rotation.z, recallDirection * .035, 2.1, delta);
+      crystalRef.current.position.x = THREE.MathUtils.damp(crystalRef.current.position.x, recallDirection * .26, 2.1, delta);
       crystalRef.current.position.y = THREE.MathUtils.damp(crystalRef.current.position.y, lifecycle.entry * 0.12, 2.1, delta);
     }
   });

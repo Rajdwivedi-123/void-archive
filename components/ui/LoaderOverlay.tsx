@@ -6,11 +6,13 @@ import { useEffect, useRef } from "react";
 type LoaderOverlayProps = {
   isVisible: boolean;
   reducedMotion: boolean;
+  returningVisitor?: boolean;
 };
 
 export function LoaderOverlay({
   isVisible,
   reducedMotion,
+  returningVisitor = false,
 }: LoaderOverlayProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -62,12 +64,12 @@ export function LoaderOverlay({
     >
       <div ref={contentRef} className="flex flex-col items-center text-center">
         <p className="text-[11px] uppercase tracking-[0.6em] text-white/55">
-          INITIALIZING ARCHIVE
+          {returningVisitor ? "OBSERVER TRACE RECOGNIZED" : "INITIALIZING ARCHIVE"}
         </p>
         <p className="mt-6 text-4xl font-semibold tracking-[0.28em] sm:text-5xl lg:text-6xl">
           VOID ARCHIVE
         </p>
-        <p className="mt-3 text-[8px] tracking-[0.42em] text-white/30">SIX SECTORS / SECURE LINK</p>
+        <p className="mt-3 text-[8px] tracking-[0.42em] text-white/30">{returningVisitor ? "SUBJECT 07 / PRIOR OBSERVATION RESTORED" : "SIX SECTORS / SECURE LINK"}</p>
         <div className="mt-8 h-px w-36 overflow-hidden rounded-full bg-white/20">
           <div
             ref={barRef}

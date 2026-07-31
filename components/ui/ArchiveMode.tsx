@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { archiveArtifacts, archiveData } from "@/artifacts/archiveData";
 import type { ArtifactId } from "@/artifacts/inspection";
 import { useReality, useRealitySnapshot } from "@/reality/RealityProvider";
+import type { RealitySnapshot } from "@/reality/realityTypes";
 import type { GraphicsQuality } from "@/hooks/useGraphicsQuality";
 
 type ArchiveSection = "index" | "connections" | "sectors" | "system";
@@ -36,7 +37,7 @@ export function ArchiveCommand({
 }) {
   return (
     <button
-      className={`fixed bottom-7 right-5 z-[42] min-h-11 border border-white/16 bg-black/35 px-4 text-[9px] tracking-[0.32em] text-white/62 backdrop-blur-sm transition-all hover:border-white/38 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white sm:bottom-8 sm:right-8 ${active ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-2 opacity-0"}`}
+      className={`fixed bottom-3 right-3 z-[42] min-h-11 border border-white/16 bg-black/35 px-4 text-[9px] tracking-[0.32em] text-white/62 backdrop-blur-sm transition-all hover:border-white/38 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white sm:bottom-8 sm:right-8 ${active ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-2 opacity-0"}`}
       onClick={onOpen}
       type="button"
       aria-label={`Open archive. ${discoveredCount} of 6 artifacts discovered.`}
@@ -67,7 +68,8 @@ export function ArchiveMode({
   const selectedArtifact = archiveArtifacts.find((artifact) => artifact.id === selectedId) ?? archiveArtifacts[0];
   const selectedData = archiveData[selectedArtifact.id];
   const event13Record = { type: "EVENT 13", code: `T/${session.seed.slice(0, 3)}`, body: "OBSERVATION STATUS / UNOBSERVED · RECORD CREATION / 04.731 SEC BEFORE EVENT · LOCATION / N-07" };
-  const visibleRecords = selectedArtifact.id === "003" && session.event13Discovered ? [...selectedData.records, event13Record] : selectedData.records;
+  const observerRecord = { type: "OBSERVER CORRELATION", code: `O/${session.archetype.slice(0, 3).toUpperCase()}`, body: `${session.archetype.toUpperCase()} TRACE / ${session.observationQuality.toUpperCase()} · RESPONSE / ${session.affinity.toUpperCase()} · ${session.measurements.mnemonicIndex}` };
+  const visibleRecords = [...selectedData.records, ...(selectedArtifact.id === "003" && session.event13Discovered ? [event13Record] : []), ...(session.observerConfidence >= .35 ? [observerRecord] : [])];
   const selectedRecord = visibleRecords[Math.min(recordIndex, visibleRecords.length - 1)];
 
   const selectArtifact = (id: ArtifactId) => {
@@ -83,6 +85,8 @@ export function ArchiveMode({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose, open]);
+
+  useEffect(() => { if (open) reality.recordArchiveView(section); }, [open, reality, section]);
 
   return (
     <section
@@ -107,7 +111,7 @@ export function ArchiveMode({
           </div>
         </header>
 
-        <nav className="flex shrink-0 gap-5 overflow-x-auto border-b border-white/8 py-4 text-[8px] tracking-[0.28em] text-white/35" aria-label="Archive sections">
+        <nav className="flex shrink-0 justify-between gap-2 overflow-hidden border-b border-white/8 py-4 text-[7px] tracking-[0.16em] text-white/35 sm:justify-start sm:gap-5 sm:overflow-x-auto sm:text-[8px] sm:tracking-[0.28em]" aria-label="Archive sections">
           {(["index", "connections", "sectors", "system"] as ArchiveSection[]).map((item) => (
             <button key={item} className={`min-h-10 whitespace-nowrap border-b transition-colors ${section === item ? "border-white/55 text-white/85" : "border-transparent hover:text-white/65"}`} onClick={() => setSection(item)} type="button">
               {item === "index" ? "ARTIFACT INDEX" : item.toUpperCase()}
@@ -172,21 +176,22 @@ export function ArchiveMode({
             </div>
           )}
 
-          {section === "connections" && <ConnectionMap discoveredCount={discoveredCount} revealN07={postJourney || session.event13Discovered} mirrorDepth={session.mirrorObservationDepth} onSelect={(id) => { selectArtifact(id); setSection("index"); }} />}
+          {section === "connections" && <ConnectionMap discoveredCount={discoveredCount} revealN07={postJourney || session.event13Discovered} mirrorDepth={session.mirrorObservationDepth} archetype={session.archetype} route={session.n07Route} onSelect={(id) => { selectArtifact(id); setSection("index"); }} />}
           {section === "sectors" && <SectorMap discoveredCount={discoveredCount} revealN07={postJourney || session.event13Discovered} voidMeasured={session.voidProbeCount > 0} onSelect={(id) => { selectArtifact(id); setSection("index"); }} />}
-          {section === "system" && <SystemPanel discoveredCount={discoveredCount} postJourney={postJourney} seed={session.seed} affinity={session.affinity} confidence={session.observerConfidence} quality={graphicsQuality} />}
+          {section === "system" && <SystemPanel discoveredCount={discoveredCount} postJourney={postJourney} session={session} quality={graphicsQuality} onReset={() => { if (window.confirm("Reset the local observer trace? This cannot be undone.")) reality.resetTrace(); }} />}
         </div>
       </div>
     </section>
   );
 }
 
-function ConnectionMap({ discoveredCount, revealN07, mirrorDepth, onSelect }: { discoveredCount: number; revealN07: boolean; mirrorDepth: number; onSelect: (id: ArtifactId) => void }) {
+function ConnectionMap({ discoveredCount, revealN07, mirrorDepth, archetype, route, onSelect }: { discoveredCount: number; revealN07: boolean; mirrorDepth: number; archetype: string; route: string | null; onSelect: (id: ArtifactId) => void }) {
   return (
     <div className="mx-auto max-w-5xl">
       <p className="text-[8px] tracking-[0.42em] text-white/28">ARCHIVE CORRELATION / LIVE MODEL</p>
       <h3 className="mt-4 text-2xl tracking-[0.28em] sm:text-4xl">CONNECTION FIELD</h3>
       <p className="mt-4 max-w-xl text-[9px] leading-5 tracking-[0.2em] text-white/36">Relationships resolve only after direct observation. Cross-sector causality remains unverified.</p>
+      <p className="mt-3 text-[7px] tracking-[.25em] text-white/28">MODEL EMPHASIS / {archetype.toUpperCase()} · N-07 VECTOR / {(route ?? "UNRESOLVED").toUpperCase()}</p>
       <div className="relative mt-9 aspect-[16/8] min-h-[19rem] border-y border-white/10">
         <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           {[0, 1, 2, 3, 4].map((index) => <line key={index} x1={mapPositions[index][0]} y1={mapPositions[index][1]} x2={mapPositions[index + 1][0]} y2={mapPositions[index + 1][1]} stroke="rgba(220,228,228,.28)" strokeWidth=".18" opacity={index + 1 < discoveredCount ? 1 : .2} />)}
@@ -228,13 +233,14 @@ function SectorMap({ discoveredCount, revealN07, voidMeasured, onSelect }: { dis
   );
 }
 
-function SystemPanel({ discoveredCount, postJourney, seed, affinity, confidence, quality }: { discoveredCount: number; postJourney: boolean; seed: string; affinity: string; confidence: number; quality: GraphicsQuality }) {
+function SystemPanel({ discoveredCount, postJourney, session, quality, onReset }: { discoveredCount: number; postJourney: boolean; session: RealitySnapshot; quality: GraphicsQuality; onReset: () => void }) {
   const rows = [
     ["ARCHIVE STATUS", `${discoveredCount} ANOMALIES CONTAINED`], ["ACTIVE SECTORS", String(discoveredCount).padStart(2, "0")],
-    ["OBSERVER STATUS", postJourney ? "TRACKED / 07" : `PATTERN ${Math.round(confidence * 100)}%`], ["SESSION", `LOCAL / ${seed}`],
-    ["OBSERVER AFFINITY", affinity.toUpperCase()],
+    ["OBSERVER STATUS", postJourney ? "TRACKED / 07" : `PATTERN ${Math.round(session.observerConfidence * 100)}%`], ["SESSION", `LOCAL / ${session.seed}`],
+    ["OBSERVER ARCHETYPE", session.archetype.toUpperCase()], ["OBSERVER AFFINITY", session.affinity.toUpperCase()],
+    ["OBSERVATION QUALITY", session.observationQuality.toUpperCase()], ["N-07 ROUTE", (session.n07Route ?? "UNRESOLVED").toUpperCase()],
     ["RENDER STATUS", "NOMINAL"], ["AUDIO BUS", "STANDBY / NO ASSET LINK"],
     ["GRAPHICS TIER", quality.toUpperCase()],
   ];
-  return <div className="mx-auto max-w-3xl"><p className="text-[8px] tracking-[0.42em] text-white/28">ARCHIVE OPERATING LAYER</p><h3 className="mt-4 text-2xl tracking-[0.28em] sm:text-4xl">SYSTEM</h3><div className="mt-10 border-y border-white/10">{rows.map(([label, value]) => <div key={label} className="grid min-h-16 grid-cols-[1fr_1.25fr] items-center border-b border-white/7 text-[8px] tracking-[0.24em]"><span className="text-white/29">{label}</span><span className="text-white/68">{value}</span></div>)}</div><p className="mt-7 text-[8px] leading-5 tracking-[0.22em] text-white/26">SOUND REMAINS DISABLED UNTIL A USER-INITIATED ASSET BUS IS AVAILABLE. NO AUDIO AUTOPLAY IS PERMITTED.</p></div>;
+  return <div className="mx-auto max-w-3xl"><p className="text-[8px] tracking-[0.42em] text-white/28">ARCHIVE OPERATING LAYER</p><h3 className="mt-4 text-2xl tracking-[0.28em] sm:text-4xl">SYSTEM</h3><div className="mt-10 border-y border-white/10">{rows.map(([label, value]) => <div key={label} className="grid min-h-16 grid-cols-[1fr_1.25fr] items-center border-b border-white/7 text-[8px] tracking-[0.24em]"><span className="text-white/29">{label}</span><span className="text-white/68">{value}</span></div>)}</div><div className="mt-7 border-l border-white/12 pl-4"><p className="text-[8px] leading-5 tracking-[0.22em] text-white/32">SUBJECT 07 / OBSERVER RECORD<br />CLASSIFICATION CONFIDENCE / {Math.round(session.observerConfidence * 100)}%<br />TRACE STORAGE / LOCAL DEVICE ONLY</p><button type="button" className="mt-5 min-h-11 border border-[#aa9a91]/25 px-4 text-[8px] tracking-[.25em] text-[#b8a9a0]/62 hover:text-white" onClick={onReset}>RESET OBSERVER TRACE</button></div></div>;
 }

@@ -1,8 +1,9 @@
 "use client";
 
 import type { JourneyStage } from "@/utils/journey";
+import type { RealitySnapshot } from "@/reality/realityTypes";
 
-type JourneyUIProps = { stage: JourneyStage };
+type JourneyUIProps = { stage: JourneyStage; snapshot: RealitySnapshot };
 
 const firstTransitStages: JourneyStage[] = ["departure", "exit", "corridor", "deep-archive"];
 const secondTransitStages: JourneyStage[] = ["object-two-departure", "measurement-passage"];
@@ -18,7 +19,7 @@ const systemEvents: Partial<Record<JourneyStage, { label: string; value: string 
   "object-six-inspection": { label: "SEQUENCE VALIDITY", value: "FAILED" },
 };
 
-export function JourneyUI({ stage }: JourneyUIProps) {
+export function JourneyUI({ stage, snapshot }: JourneyUIProps) {
   const firstTransit = firstTransitStages.includes(stage);
   const secondTransit = secondTransitStages.includes(stage);
   const thirdTransit = thirdTransitStages.includes(stage);
@@ -28,6 +29,11 @@ export function JourneyUI({ stage }: JourneyUIProps) {
   const systemEvent = systemEvents[stage];
   const transitCode = fifthTransit ? "V-05 → R-06" : fourthTransit ? "N-04 → V-05" : thirdTransit ? "T-03 → N-04" : secondTransit ? "M-02 → T-03" : "G-01 → M-02";
   const transitLabel = fifthTransit ? "MEMORY RECOVERY ACTIVE" : fourthTransit ? "GEOMETRIC ISOLATION ACTIVE" : thirdTransit ? "BIO-ISOLATION LINK ACTIVE" : secondTransit ? "CHRONOLOGY LINK ACTIVE" : "ARCHIVE LINK ACTIVE";
+  const adaptiveNote = stage === "bio-isolation-passage"
+    ? snapshot.temporalNeuralBranch === "causality" ? "CAUSAL TRACE / EVENT PRECEDES ENTRY" : "ANTICIPATORY TRACE / RELIC AWAITING INPUT"
+    : stage === "geometric-isolation-passage"
+      ? snapshot.neuralVoidBranch === "spatial-mismatch" ? `MEASURED RETURN / ${snapshot.measurements.returnDistance}` : snapshot.neuralVoidBranch === "structural" ? "STRUCTURAL TRACE / COGNITIVE ECHO" : "NO RESPONSE RECORDED"
+      : null;
   return (
     <div className="pointer-events-none fixed inset-0 z-30 flex items-center justify-end p-5 sm:p-8 lg:p-12">
       {stage === "geometric-isolation-passage" && <div className="non-euclidean-ribs absolute inset-y-[12%] left-[18%] right-[18%] opacity-70"><p className="absolute bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[7px] tracking-[.34em] text-white/30">VISIBLE LENGTH / 18 M&nbsp;&nbsp;&nbsp; MEASURED RETURN / 43 M</p></div>}
@@ -40,6 +46,7 @@ export function JourneyUI({ stage }: JourneyUIProps) {
         {stage === "bio-isolation-passage" && <p className="mt-4 text-[8px] tracking-[0.3em] text-[#a9aaa2]/65">COGNITIVE SCREEN / ARMED</p>}
         {stage === "geometric-isolation-passage" && <p className="mt-4 text-[8px] tracking-[0.3em] text-[#a9aaa2]/65">SPATIAL RETURN / EXTENDING</p>}
         {stage === "memory-recovery-passage" && <p className="mt-4 text-[8px] tracking-[0.3em] text-[#c2c3ba]/65">SPATIAL CONTINUITY / RESTORED</p>}
+        {adaptiveNote && <p className="mt-4 max-w-56 text-[7px] leading-4 tracking-[0.24em] text-white/52">{adaptiveNote}</p>}
       </div>
       {[
         { visible: stage === "object-two-arrival", id: "002", title: "VISUAL ISOLATION", detail: "RECORD HANDSHAKE / PARTIAL" },

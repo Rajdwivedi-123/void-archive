@@ -23,6 +23,7 @@ import type { InspectionControlRef } from "@/artifacts/inspection";
 import type { GraphicsQuality } from "@/hooks/useGraphicsQuality";
 import { SelectiveVolumetrics } from "../effects/SelectiveVolumetrics";
 import { SignatureTransitions } from "./SignatureTransitions";
+import { AdaptivePassages } from "./AdaptivePassages";
 
 type ArchiveJourneyProps = {
   tier: DeviceTier;
@@ -55,6 +56,7 @@ export function ArchiveJourney({ tier, quality, reducedMotion, hasFinePointer, s
       <MemoryCrystal tier={tier} quality={quality} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} inspection={inspection} />
       <SelectiveVolumetrics scrollProgress={scrollProgress} quality={quality} reducedMotion={reducedMotion} />
       <SignatureTransitions scrollProgress={scrollProgress} reducedMotion={reducedMotion} />
+      <AdaptivePassages tier={tier} />
     </group>
   );
 }

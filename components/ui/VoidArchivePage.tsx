@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ArchiveCanvas } from "../three/ArchiveCanvas";
 import { ArchiveHUD } from "./ArchiveHUD";
 import { ArtifactRecord } from "./ArtifactRecord";
@@ -210,14 +210,37 @@ function VoidArchiveExperience() {
       <ArtifactRecord artifact={neuralRelicArtifact} isVisible={neuralRecordVisible} reducedMotion={reducedMotion} anomalyActive={journeyStage === "object-four-inspection"} />
       <ArtifactRecord artifact={voidArtifact} isVisible={voidRecordVisible} reducedMotion={reducedMotion} anomalyActive={journeyStage === "object-five-inspection"} />
       <ArtifactRecord artifact={memoryCrystalArtifact} isVisible={memoryRecordVisible} reducedMotion={reducedMotion} anomalyActive={journeyStage === "object-six-inspection"} />
-      {!interactionHidden && <JourneyUI stage={journeyStage} />}
+      {!interactionHidden && <JourneyUI stage={journeyStage} snapshot={realitySession} />}
       <ArchiveEnding stage={journeyStage} reducedMotion={reducedMotion} onOpenArchive={() => setArchiveOpen(true)} />
       <ArchiveCommand active={introComplete && !interactionHidden && journeyStage !== "session-complete"} discoveredCount={discoveredCount} onOpen={() => setArchiveOpen(true)} />
       <ArchiveMode open={archiveOpen} discoveredCount={discoveredCount} selectedId={selectedId} postJourney={postJourney} reducedMotion={reducedMotion} graphicsQuality={quality} onClose={() => setArchiveOpen(false)} onSelect={setSelectedId} onRevisit={(id) => seekArtifact(id, false)} onInspect={(id) => seekArtifact(id, true)} />
       <InspectMode artifact={inspectedArtifact} primary={inspectionPrimary} scanner={scannerActive} reducedMotion={reducedMotion} onPrimary={handlePrimary} onScanner={handleScanner} onPointer={handleInspectionPointer} onExit={() => setInspectedId(null)} />
       <RealityEffects artifact={interactionHidden ? realityArtifact : stageArtifact(journeyStage)} primary={inspectionPrimary} freezeActive={freezeActive} reducedMotion={reducedMotion} />
-      <LoaderOverlay isVisible={isLoading} reducedMotion={reducedMotion} />
+      <ObserverDebugPanel />
+      <LoaderOverlay isVisible={isLoading} reducedMotion={reducedMotion} returningVisitor={realitySession.returningVisitor} />
       <ArchiveCanvas isSceneReady={!isLoading} reducedMotion={reducedMotion} scrollProgress={progressRef} inspection={inspectionRef} tier={tier} quality={quality} hasFinePointer={hasFinePointer} onIntroComplete={handleIntroComplete} />
     </main>
+  );
+}
+
+function ObserverDebugPanel() {
+  const reality = useReality();
+  const session = useRealitySnapshot();
+  const enabled = useSyncExternalStore(
+    () => () => undefined,
+    () => process.env.NODE_ENV !== "production" && new URLSearchParams(location.search).has("observer-debug"),
+    () => false,
+  );
+  if (!enabled) return null;
+  return (
+    <aside className="fixed bottom-3 left-3 z-[70] max-w-[calc(100vw-6rem)] border border-white/20 bg-black/90 p-3 text-white" aria-label="Observer debug controls">
+      <p className="text-[7px] tracking-[.3em] text-white/45">OBSERVER MODEL / DEV ONLY</p>
+      <p className="mt-2 text-[8px] tracking-[.2em]">{session.archetype.toUpperCase()} · {Math.round(session.observerConfidence * 100)}% · {session.n07Route ?? "NO ROUTE"}</p>
+      <div className="mt-3 flex flex-wrap gap-1">
+        {(["interventionist", "witness", "chronologist", "cartographer", "synaptic", "mnemonist"] as const).map((profile) => (
+          <button key={profile} type="button" className="min-h-8 border border-white/15 px-2 text-[6px] tracking-[.16em] text-white/55 hover:text-white" onClick={() => reality.applyDebugProfile(profile)}>SIMULATE {profile.toUpperCase()}</button>
+        ))}
+      </div>
+    </aside>
   );
 }
