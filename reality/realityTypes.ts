@@ -1,7 +1,7 @@
 import type { ArtifactId } from "@/artifacts/inspection";
 import type { DeviceTier } from "@/hooks/useDeviceProfile";
 
-export type RealityMode = "journey" | "archive" | "inspect";
+export type RealityMode = "nexus" | "journey" | "archive" | "terminal" | "inspect";
 export type ObserverAffinity = "gravity" | "optical" | "temporal" | "adaptive" | "spatial" | "mnemonic";
 export type ObserverArchetype = "interventionist" | "witness" | "chronologist" | "cartographer" | "synaptic" | "mnemonist";
 export type ObservationQuality = "partial" | "coherent" | "interrupted" | "extended";

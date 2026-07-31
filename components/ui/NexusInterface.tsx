@@ -1,0 +1,136 @@
+"use client";
+
+import { useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
+import type { NexusInteractionId } from "@/game/gameTypes";
+import type { NexusControlStore } from "@/game/NexusControlStore";
+import type { DeviceTier } from "@/hooks/useDeviceProfile";
+import type { RealitySnapshot } from "@/reality/realityTypes";
+
+const interactionCopy: Record<NexusInteractionId, { title: string; action: string; measure: string }> = {
+  "observation-gate": { title: "OBSERVATION PROTOCOL", action: "BEGIN OBSERVATION", measure: "SECTOR ACCESS / 01–06" },
+  "archive-map": { title: "ARCHIVE MAP INSTALLATION", action: "OPEN ARCHIVE", measure: "SPATIAL INDEX / PARTIAL" },
+  "system-terminal": { title: "SYSTEM NODE", action: "OPEN TERMINAL", measure: "LOCAL STATUS / AVAILABLE" },
+  "scanner-array": { title: "MEASUREMENT ARRAY", action: "TOGGLE SCANNER", measure: "COORDINATE RETURN / STABLE" },
+  "restricted-sector": { title: "N-06 CONTAINMENT", action: "VERIFY ACCESS", measure: "ACCESS / RESTRICTED" },
+  "event-seven": { title: "UNINDEXED STRUCTURE", action: "MEASURE", measure: "ACTIVE SECTOR COUNT / 7" },
+};
+
+type NexusHudProps = {
+  entered: boolean;
+  active: boolean;
+  target: NexusInteractionId | null;
+  scanner: boolean;
+  pointerLocked: boolean;
+  tier: DeviceTier;
+  hasFinePointer: boolean;
+  controls: NexusControlStore;
+  session: RealitySnapshot;
+  tutorialVisible: boolean;
+  notice: string | null;
+  onEnter: () => void;
+  onBegin: () => void;
+  onArchive: () => void;
+  onSystem: () => void;
+  onInteract: () => void;
+  onScanner: () => void;
+};
+
+export function NexusHUD({ entered, active, target, scanner, pointerLocked, tier, hasFinePointer, controls, session, tutorialVisible, notice, onEnter, onBegin, onArchive, onSystem, onInteract, onScanner }: NexusHudProps) {
+  const look = useRef<{ x: number; y: number } | null>(null);
+  const touch = tier !== "desktop" || !hasFinePointer;
+  const setMove = (key: "forward" | "backward" | "left" | "right", value: boolean) => controls.setMovement(key, value);
+  const lookStart = (event: ReactPointerEvent) => { look.current = { x: event.clientX, y: event.clientY }; event.currentTarget.setPointerCapture(event.pointerId); };
+  const lookMove = (event: ReactPointerEvent) => {
+    if (!look.current) return;
+    controls.addLook(event.clientX - look.current.x, event.clientY - look.current.y);
+    look.current = { x: event.clientX, y: event.clientY };
+  };
+  const lookEnd = () => { look.current = null; };
+
+  return (
+    <div className={`fixed inset-0 z-30 text-white ${active ? "pointer-events-none" : ""}`} data-nexus-ui>
+      <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-5 sm:p-8 lg:p-10">
+        <div className="border-l border-white/24 pl-4">
+          <p className="text-[8px] tracking-[.46em] text-white/38">VOID ARCHIVE</p>
+          <p className="mt-2 text-[11px] tracking-[.32em] text-white/82">ARCHIVE NEXUS</p>
+          <p className="mt-3 text-[7px] tracking-[.26em] text-white/34">CLEARANCE / OBSERVER<br />ARCHIVE STATUS / UNSTABLE</p>
+        </div>
+        <div className="text-right text-[7px] leading-5 tracking-[.25em] text-white/32">
+          <p>{session.returningVisitor ? "OBSERVER 07 DETECTED" : "OBSERVER / UNREGISTERED"}</p>
+          <p>SECTORS / 01–06</p>
+          <p className="text-white/18">ACTIVE COUNT / 7</p>
+        </div>
+      </div>
+
+      {entered && <>
+        <div className={`pointer-events-none absolute left-1/2 top-1/2 h-[5px] w-[5px] -translate-x-1/2 -translate-y-1/2 rounded-full border transition-all ${target ? "scale-150 border-white/80 bg-white/20" : "border-white/38"}`} aria-hidden="true" />
+        {target && <div className="pointer-events-none absolute left-1/2 top-[calc(50%+1.4rem)] -translate-x-1/2 text-center">
+          <p className="text-[7px] tracking-[.3em] text-white/42">{interactionCopy[target].title}</p>
+          <p className="mt-2 text-[8px] tracking-[.34em] text-white/82"><span className="mr-3 border border-white/25 px-2 py-1">{touch ? "TAP" : "E"}</span>{interactionCopy[target].action}</p>
+        </div>}
+        {scanner && <div className="pointer-events-none absolute inset-4 border border-white/[.07] sm:inset-7">
+          <div className="absolute left-3 top-3 border-l border-white/28 pl-3 text-[7px] leading-5 tracking-[.26em] text-white/42">SCANNER / ACTIVE<br />{target ? interactionCopy[target].measure : "RETURN / NO LOCAL ANOMALY"}</div>
+          <div className="absolute bottom-3 right-3 text-right text-[6px] leading-4 tracking-[.24em] text-white/24">AZ 00.42 / EL 01.72<br />FIELD RESOLUTION / LOW</div>
+        </div>}
+        {notice && <div className="pointer-events-none absolute bottom-28 left-1/2 -translate-x-1/2 border-l border-white/25 bg-black/45 px-4 py-3 text-center text-[7px] tracking-[.26em] text-white/58 backdrop-blur-sm">{notice}</div>}
+        {tutorialVisible && !touch && <div className="pointer-events-none absolute bottom-9 left-9 text-[7px] leading-6 tracking-[.28em] text-white/34">WASD / MOVE<br />MOUSE / LOOK<br />E / INTERACT<br />Q / SCANNER<br />ESC / RELEASE</div>}
+        {!touch && !pointerLocked && active && <p className="pointer-events-none absolute bottom-9 left-1/2 -translate-x-1/2 text-[7px] tracking-[.3em] text-white/34">CLICK WORLD / CAPTURE MOUSE</p>}
+        <div className="pointer-events-auto absolute right-5 top-28 z-20 flex gap-2 sm:right-8 sm:top-32"><button type="button" aria-label="Begin Observation Protocol" onClick={onBegin} className="min-h-10 border border-white/16 bg-black/32 px-3 text-[7px] tracking-[.22em] text-white/52">OBSERVE</button><button type="button" aria-label="Open Nexus archive" onClick={onArchive} className="min-h-10 border border-white/10 bg-black/28 px-3 text-[7px] tracking-[.22em] text-white/38">ARCHIVE</button><button type="button" aria-label="Open Nexus system terminal" onClick={onSystem} className="min-h-10 border border-white/10 bg-black/28 px-3 text-[7px] tracking-[.22em] text-white/38">SYSTEM</button></div>
+        <button type="button" onClick={onScanner} className="pointer-events-auto absolute bottom-5 right-5 z-20 min-h-11 border border-white/14 bg-black/36 px-4 text-[7px] tracking-[.25em] text-white/52 sm:bottom-8 sm:right-8">SCANNER / {scanner ? "ACTIVE" : "OFF"}</button>
+      </>}
+
+      {touch && entered && active && <>
+        <div className="pointer-events-auto absolute bottom-5 left-5 grid h-28 w-28 grid-cols-3 grid-rows-3 gap-1 opacity-70">
+          <button aria-label="Move forward" className="col-start-2 border border-white/12 bg-black/20 text-[11px] text-white/45" onClick={() => controls.pulseMovement("forward")} onPointerDown={() => setMove("forward", true)} onPointerUp={() => setMove("forward", false)} onPointerCancel={() => setMove("forward", false)}>↑</button>
+          <button aria-label="Move left" className="row-start-2 border border-white/12 bg-black/20 text-[11px] text-white/45" onClick={() => controls.pulseMovement("left")} onPointerDown={() => setMove("left", true)} onPointerUp={() => setMove("left", false)} onPointerCancel={() => setMove("left", false)}>←</button>
+          <button aria-label="Move backward" className="col-start-2 row-start-2 border border-white/12 bg-black/20 text-[11px] text-white/45" onClick={() => controls.pulseMovement("backward")} onPointerDown={() => setMove("backward", true)} onPointerUp={() => setMove("backward", false)} onPointerCancel={() => setMove("backward", false)}>↓</button>
+          <button aria-label="Move right" className="col-start-3 row-start-2 border border-white/12 bg-black/20 text-[11px] text-white/45" onClick={() => controls.pulseMovement("right")} onPointerDown={() => setMove("right", true)} onPointerUp={() => setMove("right", false)} onPointerCancel={() => setMove("right", false)}>→</button>
+        </div>
+        <div aria-label="Swipe to look" className="pointer-events-auto absolute bottom-20 right-0 top-24 w-[48%] touch-none" onPointerDown={lookStart} onPointerMove={lookMove} onPointerUp={lookEnd} onPointerCancel={lookEnd} />
+        {target && <button type="button" onClick={onInteract} className="pointer-events-auto absolute bottom-20 right-5 min-h-12 border border-white/22 bg-black/48 px-5 text-[8px] tracking-[.28em] text-white/74">INTERACT</button>}
+      </>}
+
+      {!entered && <div className="pointer-events-auto absolute inset-0 flex items-end bg-gradient-to-t from-black/82 via-black/10 to-black/25 p-5 sm:items-center sm:p-10">
+        <section className="w-full max-w-xl border-l border-white/28 bg-black/38 px-6 py-7 backdrop-blur-[3px] sm:px-9 sm:py-9">
+          <p className="text-[8px] tracking-[.5em] text-white/36">VOID ARCHIVE</p>
+          <h2 className="mt-5 text-2xl font-medium tracking-[.28em] text-white/92 sm:text-4xl">ARCHIVE NEXUS</h2>
+          <div className="mt-7 grid grid-cols-2 gap-5 border-y border-white/10 py-5 text-[7px] leading-5 tracking-[.28em]"><p className="text-white/28">CLEARANCE<br /><span className="text-white/72">OBSERVER</span></p><p className="text-white/28">ARCHIVE STATUS<br /><span className="text-white/72">UNSTABLE</span></p></div>
+          {session.returningVisitor && <p className="mt-5 text-[7px] tracking-[.28em] text-white/48">OBSERVER 07 DETECTED / CHECKPOINT RESTORED</p>}
+          <div className="mt-7 flex flex-wrap gap-2">
+            <button type="button" onClick={onEnter} className="min-h-12 border border-white/38 bg-white/[.04] px-5 text-[8px] tracking-[.28em] text-white/88">ENTER NEXUS</button>
+            <button type="button" onClick={onBegin} className="min-h-12 border border-white/18 px-5 text-[8px] tracking-[.25em] text-white/62">BEGIN OBSERVATION</button>
+            <button type="button" onClick={onArchive} className="min-h-12 border border-white/12 px-4 text-[8px] tracking-[.24em] text-white/48">ARCHIVE</button>
+            <button type="button" onClick={onSystem} className="min-h-12 border border-white/12 px-4 text-[8px] tracking-[.24em] text-white/48">SYSTEM</button>
+          </div>
+          <p className="mt-6 text-[7px] leading-5 tracking-[.22em] text-white/24">MOVE THROUGH THE HALL. APPROACH ARCHITECTURE TO INTERACT.<br />OBSERVATION PROTOCOL REMAINS AVAILABLE INSIDE THE NEXUS.</p>
+        </section>
+      </div>}
+    </div>
+  );
+}
+
+export function NexusTerminal({ open, session, onClose, onArchive }: { open: boolean; session: RealitySnapshot; onClose: () => void; onArchive: () => void }) {
+  const [tab, setTab] = useState<"status" | "index" | "map" | "session">("status");
+  if (!open) return null;
+  return (
+    <section className="fixed inset-0 z-[48] flex items-center justify-center bg-black/72 p-4 text-white backdrop-blur-md" aria-label="Nexus system terminal">
+      <div className="w-full max-w-4xl border border-white/14 bg-[#050707]/95 p-5 sm:p-8">
+        <header className="flex items-start justify-between border-b border-white/12 pb-5"><div><p className="text-[8px] tracking-[.45em] text-white/34">SYSTEM NODE / NEXUS LOCAL</p><h2 className="mt-3 text-xl tracking-[.3em] sm:text-3xl">ARCHIVE SYSTEM</h2></div><button type="button" onClick={onClose} className="min-h-11 border-l border-white/20 pl-4 text-[8px] tracking-[.26em] text-white/58">ESC / BACK</button></header>
+        <nav className="flex gap-5 overflow-x-auto border-b border-white/8 py-4">{(["status", "index", "map", "session"] as const).map((item) => <button key={item} type="button" onClick={() => setTab(item)} className={`min-h-10 text-[8px] tracking-[.27em] ${tab === item ? "text-white" : "text-white/32"}`}>{item.toUpperCase()}</button>)}</nav>
+        <div className="min-h-72 py-7">
+          {tab === "status" && <div className="grid gap-6 sm:grid-cols-3"><TerminalMetric label="ARCHIVE STATUS" value="UNSTABLE" /><TerminalMetric label="ACTIVE SECTOR COUNT" value="7" muted /><TerminalMetric label="INDEXED SECTORS" value="01–06" /><TerminalMetric label="OBSERVATION" value={session.archiveUnlocked ? "COMPLETE" : "AVAILABLE"} /><TerminalMetric label="NEXUS RETURN" value="STABLE" /><TerminalMetric label="LOCAL GEOMETRY" value={session.voidProbeCount ? "INCOMPLETE" : "NOMINAL"} /></div>}
+          {tab === "index" && <div className="space-y-3">{[1,2,3,4,5,6].map((index) => <div key={index} className="flex justify-between border-b border-white/8 py-3 text-[8px] tracking-[.25em]"><span className="text-white/56">N-{String(index).padStart(2,"0")}</span><span className={index === 1 || index <= session.visitOrder.length ? "text-white/62" : "text-white/22"}>{index === 1 ? "OBSERVATION ACCESS" : index <= session.visitOrder.length ? "OBSERVED / RESTRICTED" : "UNRESOLVED"}</span></div>)}</div>}
+          {tab === "map" && <div><p className="max-w-xl text-[9px] leading-6 tracking-[.22em] text-white/44">PHYSICAL NEXUS INSTALLATION AND ARCHIVE SECTOR MODEL SHARE SIX REGISTERED COORDINATES. LOCAL SYSTEM STATUS REPORTS ONE ADDITIONAL ACTIVE RETURN.</p><button type="button" onClick={onArchive} className="mt-7 min-h-11 border border-white/20 px-5 text-[8px] tracking-[.27em] text-white/68">OPEN DETAILED MAP</button></div>}
+          {tab === "session" && <div className="grid gap-6 sm:grid-cols-2"><TerminalMetric label="OBSERVER" value={session.returningVisitor ? "SUBJECT 07" : "UNREGISTERED"} /><TerminalMetric label="PROFILE" value={session.archetype.toUpperCase()} /><TerminalMetric label="DISCOVERIES" value={`${session.visitOrder.length} / 6`} /><TerminalMetric label="EVENT 13" value={session.event13Discovered ? "RECORDED" : "UNRESOLVED"} /></div>}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TerminalMetric({ label, value, muted = false }: { label: string; value: string; muted?: boolean }) { return <div className="border-l border-white/14 pl-4"><p className="text-[7px] tracking-[.27em] text-white/27">{label}</p><p className={`mt-3 text-[10px] tracking-[.24em] ${muted ? "text-white/24" : "text-white/72"}`}>{value}</p></div>; }
+
+export function NexusTransition({ visible, returning }: { visible: boolean; returning: boolean }) {
+  return <div className={`pointer-events-none fixed inset-0 z-[55] flex items-center justify-center bg-black text-center text-white transition-opacity duration-700 ${visible ? "opacity-100" : "opacity-0"}`} aria-hidden={!visible}><div><p className="text-[8px] tracking-[.48em] text-white/34">{returning ? "NEXUS LINK / RESTORING" : "OBSERVATION CONTROL"}</p><p className="mt-5 text-xl tracking-[.32em] text-white/82 sm:text-3xl">{returning ? "RETURN TO ARCHIVE NEXUS" : "OBSERVATION PROTOCOL"}</p><p className="mt-4 text-[7px] tracking-[.3em] text-white/26">{returning ? "PLAYER CONTROL / PENDING" : "SECTOR ACCESS / 01–06"}</p></div></div>;
+}

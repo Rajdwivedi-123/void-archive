@@ -13,9 +13,9 @@ function AudioDiagnosticsProbe({ read }: { read: () => AudioDiagnostics }) {
   return <output hidden data-void-audio-diagnostics={JSON.stringify(snapshot)} />;
 }
 
-export function SoundControl({ active, mode }: { active: boolean; mode: "journey" | "archive" | "inspect" }) {
+export function SoundControl({ active, mode }: { active: boolean; mode: "nexus" | "journey" | "archive" | "inspect" }) {
   const audio = useArchiveAudio();
-  const placement = mode === "archive" ? "bottom-3 left-16 sm:bottom-8 sm:left-20" : "left-1/2 top-16 -translate-x-1/2 sm:top-8";
+  const placement = mode === "archive" ? "bottom-3 left-16 sm:bottom-8 sm:left-20" : mode === "nexus" ? "bottom-5 left-1/2 -translate-x-1/2 sm:bottom-8" : "left-1/2 top-16 -translate-x-1/2 sm:top-8";
   return (
     <div className={`fixed z-[49] transition-all ${placement} ${active ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-2 opacity-0"}`}>
       <button
