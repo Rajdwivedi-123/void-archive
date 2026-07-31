@@ -122,7 +122,7 @@ export function NeuralRelic({ tier, reducedMotion, hasFinePointer, scrollProgres
       if (!material) return;
       const isSignature = branchIndex === branchPairs.length - 1;
       const stagedReveal = isSignature
-        ? smootherRange(progress, 0.974, 0.991)
+        ? smootherRange(progress, 0.868, 0.884)
         : THREE.MathUtils.clamp(lifecycle.activation * 1.55 - visibleIndex * 0.075, 0, 1);
       material.uniforms.uTime.value = timeRef.current;
       material.uniforms.uGrowth.value = reducedMotion ? lifecycle.activation * 0.35 : lifecycle.activation;

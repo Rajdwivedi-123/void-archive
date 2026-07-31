@@ -10,7 +10,7 @@ import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useDeviceProfile } from "@/hooks/useDeviceProfile";
 import { useArchiveScroll } from "@/hooks/useArchiveScroll";
 import { JourneyUI } from "./JourneyUI";
-import { gravityCoreArtifact, liquidMirrorArtifact, neuralRelicArtifact, temporalRingArtifact } from "@/artifacts/registry";
+import { gravityCoreArtifact, liquidMirrorArtifact, neuralRelicArtifact, temporalRingArtifact, voidArtifact } from "@/artifacts/registry";
 
 export function VoidArchivePage() {
   const [isLoading, setIsLoading] = useState(true);
@@ -46,6 +46,7 @@ export function VoidArchivePage() {
   const mirrorRecordVisible = journeyStage === "object-two-activation" || journeyStage === "object-two-inspection";
   const temporalRecordVisible = journeyStage === "object-three-activation" || journeyStage === "object-three-inspection";
   const neuralRecordVisible = journeyStage === "object-four-activation" || journeyStage === "object-four-inspection";
+  const voidRecordVisible = journeyStage === "object-five-activation" || journeyStage === "object-five-inspection";
 
   return (
     <div className="journey-scroll-space relative overflow-x-hidden bg-[#030303] text-white">
@@ -54,6 +55,7 @@ export function VoidArchivePage() {
       <ArtifactRecord artifact={liquidMirrorArtifact} isVisible={mirrorRecordVisible} reducedMotion={reducedMotion} anomalyActive={journeyStage === "object-two-inspection"} />
       <ArtifactRecord artifact={temporalRingArtifact} isVisible={temporalRecordVisible} reducedMotion={reducedMotion} anomalyActive={journeyStage === "object-three-inspection"} />
       <ArtifactRecord artifact={neuralRelicArtifact} isVisible={neuralRecordVisible} reducedMotion={reducedMotion} anomalyActive={journeyStage === "object-four-inspection"} />
+      <ArtifactRecord artifact={voidArtifact} isVisible={voidRecordVisible} reducedMotion={reducedMotion} anomalyActive={journeyStage === "object-five-inspection"} />
       <JourneyUI stage={journeyStage} />
       <LoaderOverlay isVisible={isLoading} reducedMotion={reducedMotion} />
       <ArchiveCanvas isSceneReady={!isLoading} reducedMotion={reducedMotion} scrollProgress={progressRef} tier={tier} hasFinePointer={hasFinePointer} onIntroComplete={handleIntroComplete} />

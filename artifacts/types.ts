@@ -14,10 +14,12 @@ export type ArtifactQualityProfile = {
   temporalSegments?: number;
   branchCount?: number;
   signalCount?: number;
+  voidParticles?: number;
+  fractureSeams?: number;
 };
 
 export type ArtifactDefinition = {
-  id: "001" | "002" | "003" | "004";
+  id: "001" | "002" | "003" | "004" | "005";
   archiveCode: string;
   title: string;
   classification: string;

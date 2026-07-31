@@ -5,7 +5,7 @@ import { useRef } from "react";
 import * as THREE from "three";
 import type { DeviceTier } from "@/hooks/useDeviceProfile";
 import type { MutableRefObject } from "react";
-import { liquidMirrorArtifact, neuralRelicArtifact, temporalRingArtifact } from "@/artifacts/registry";
+import { liquidMirrorArtifact, neuralRelicArtifact, temporalRingArtifact, voidArtifact } from "@/artifacts/registry";
 
 type JourneyCameraProps = {
   introComplete: boolean;
@@ -32,30 +32,40 @@ const desktopFrames: CameraKeyframe[] = [
   { at: liquidMirrorArtifact.camera.entryAt, position: [5.15, 3.28, -100.5], target: [4.72, 3.1, -116], roll: 0, fov: 43 },
   { at: 0.5, position: [3.58, 3.35, -104], target: [4.66, 3.08, -116], roll: -0.006, fov: 41.5 },
   { at: liquidMirrorArtifact.camera.inspectionAt, position: [3.18, 3.05, -105.2], target: [4.74, 3.12, -116], roll: 0.004, fov: 40.5 },
-  { at: 0.59, position: [5.86, 3.12, -106], target: [4.5, 3.06, -116], roll: 0, fov: 41 },
-  { at: 0.62, position: [9.65, 3.05, -106.5], target: [11.45, 2.9, -126], roll: -0.008, fov: 44 },
-  { at: 0.66, position: [11.45, 2.8, -140], target: [11.5, 2.9, -158], roll: 0, fov: 46 },
+  { at: 0.57, position: [5.86, 3.12, -106], target: [4.5, 3.06, -116], roll: 0, fov: 41 },
+  { at: 0.595, position: [9.65, 3.05, -112.5], target: [11.45, 2.9, -130], roll: -0.008, fov: 44 },
+  { at: 0.61, position: [11.45, 2.8, -140], target: [11.5, 2.9, -158], roll: 0, fov: 46 },
   { at: temporalRingArtifact.camera.entryAt, position: [10.25, 3.25, -156.2], target: [11.5, 3.35, -170], roll: 0.006, fov: 43 },
-  { at: 0.75, position: [9.8, 3.15, -157], target: [11.5, 3.35, -170], roll: -0.004, fov: 41.5 },
+  { at: 0.665, position: [9.8, 3.15, -157], target: [11.5, 3.35, -170], roll: -0.004, fov: 41.5 },
   { at: temporalRingArtifact.camera.inspectionAt, position: [9.65, 3.05, -157.4], target: [11.5, 3.35, -170], roll: 0.003, fov: 40.5 },
-  { at: 0.83, position: [13.25, 3.2, -158], target: [11.5, 3.32, -170], roll: 0, fov: 41 },
-  { at: 0.86, position: [13.6, 3.1, -174], target: [9.8, 3.3, -190], roll: -0.004, fov: 44 },
-  { at: 0.89, position: [7.8, 3.45, -194], target: [1.2, 3.8, -210], roll: 0, fov: 46 },
+  { at: 0.745, position: [13.25, 3.2, -158], target: [11.5, 3.32, -170], roll: 0, fov: 41 },
+  { at: 0.76, position: [13.6, 3.1, -174], target: [9.8, 3.3, -190], roll: -0.004, fov: 44 },
+  { at: 0.78, position: [7.8, 3.45, -194], target: [1.2, 3.8, -210], roll: 0, fov: 46 },
   { at: neuralRelicArtifact.camera.entryAt, position: [0.65, 4.75, -207.2], target: [-2.5, 4.05, -220], roll: 0.004, fov: 43.5 },
-  { at: 0.94, position: [-0.15, 5.15, -207.8], target: [-2.75, 4.2, -220], roll: -0.003, fov: 41.5 },
+  { at: 0.835, position: [-0.15, 5.15, -207.8], target: [-2.75, 4.2, -220], roll: -0.003, fov: 41.5 },
   { at: neuralRelicArtifact.camera.inspectionAt, position: [-0.55, 4.85, -207.4], target: [-2.65, 4.12, -220], roll: 0, fov: 40.5 },
-  { at: 1, position: [-5.4, 4.55, -207.1], target: [-2.45, 4.15, -220], roll: 0.003, fov: 41.5 },
+  { at: 0.885, position: [-5.4, 4.55, -207.1], target: [-2.45, 4.15, -220], roll: 0.003, fov: 41.5 },
+  { at: 0.895, position: [-3.8, 4.25, -225], target: [1.1, 3.8, -242], roll: -0.003, fov: 44 },
+  { at: 0.91, position: [1.4, 3.5, -249.5], target: [5.1, 4.0, -270], roll: 0, fov: 46 },
+  { at: voidArtifact.camera.entryAt, position: [2.7, 4.15, -265.8], target: [5.3, 4.25, -282], roll: 0.004, fov: 43 },
+  { at: 0.952, position: [1.45, 3.95, -266.4], target: [5.15, 4.15, -282], roll: -0.004, fov: 41 },
+  { at: voidArtifact.camera.inspectionAt, position: [0.65, 4.05, -266.1], target: [5.28, 4.2, -282], roll: 0.002, fov: 40 },
+  { at: 0.987, position: [1.8, 4.0, -267.2], target: [5.35, 4.2, -282], roll: -0.006, fov: 37.5 },
+  { at: 0.996, position: [-0.2, 3.85, -266.3], target: [5.22, 4.15, -282], roll: 0.004, fov: 41.5 },
+  { at: 1, position: [-1.55, 3.7, -265.7], target: [5.15, 4.1, -282], roll: 0.002, fov: 42.5 },
 ];
 
 const mobileFrames: CameraKeyframe[] = desktopFrames.map((frame, index) => ({
   ...frame,
   position: index === 0
     ? [0, 2.28, 9.5]
-    : index >= 18
+    : frame.at >= voidArtifact.camera.entryAt
+      ? [5.3, frame.position[1] + 0.35, frame.position[2] - 1.5]
+      : frame.at >= neuralRelicArtifact.camera.entryAt
       ? [-2.5, frame.position[1] + 0.22, frame.position[2] - 0.5]
-      : index >= 11
+      : frame.at >= temporalRingArtifact.camera.entryAt
         ? [11.5, frame.position[1] + 0.18, frame.position[2] - 0.35]
-      : index >= 6
+      : frame.at >= liquidMirrorArtifact.camera.entryAt
         ? [4.72, frame.position[1] + 0.18, frame.position[2] - 0.35]
       : [frame.position[0], frame.position[1] + (index > 3 ? 0.15 : 0), frame.position[2]],
   roll: 0,

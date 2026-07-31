@@ -13,6 +13,9 @@ import { MeasurementPassage } from "./MeasurementPassage";
 import { BioIsolationPassage } from "./BioIsolationPassage";
 import { NeuralRelic } from "../neural-relic/NeuralRelic";
 import { NeuralRelicChamber } from "../neural-relic/NeuralRelicChamber";
+import { GeometricIsolationPassage } from "./GeometricIsolationPassage";
+import { VoidArtifact } from "../void-artifact/VoidArtifact";
+import { VoidChamber } from "../void-artifact/VoidChamber";
 
 type ArchiveJourneyProps = {
   tier: DeviceTier;
@@ -35,6 +38,9 @@ export function ArchiveJourney({ tier, reducedMotion, hasFinePointer, scrollProg
       <BioIsolationPassage tier={tier} />
       <NeuralRelicChamber tier={tier} reducedMotion={reducedMotion} scrollProgress={scrollProgress} />
       <NeuralRelic tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} />
+      <GeometricIsolationPassage tier={tier} />
+      <VoidChamber tier={tier} reducedMotion={reducedMotion} scrollProgress={scrollProgress} />
+      <VoidArtifact tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} />
     </group>
   );
 }
