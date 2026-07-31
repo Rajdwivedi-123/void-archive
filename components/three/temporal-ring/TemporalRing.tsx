@@ -67,6 +67,8 @@ export function TemporalRing({ tier, reducedMotion, hasFinePointer, scrollProgre
   const echoRefs = useRef<Array<Array<THREE.Group | null>>>([]);
   const futureSliceRef = useRef<THREE.Group>(null);
   const futureSliceMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const observerNodeRef = useRef<THREE.Mesh>(null);
+  const observerNodeMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const timeRef = useRef(0.8);
   const timeScaleRef = useRef(1);
   const pointerRef = useRef(new THREE.Vector2());
@@ -145,6 +147,16 @@ export function TemporalRing({ tier, reducedMotion, hasFinePointer, scrollProgre
       futureSliceMaterialRef.current.opacity = futurePresence * (reducedMotion ? 0.42 : 0.58);
     }
 
+    if (observerNodeRef.current && observerNodeMaterialRef.current) {
+      const observerEcho = reducedMotion
+        ? lifecycle.inspection * 0.26
+        : smoothRange(progress, 0.683, 0.688) * (1 - smoothRange(progress, 0.698, 0.704));
+      const observerPhase = currentTime * 0.19 + 0.8;
+      observerNodeRef.current.position.set(Math.cos(observerPhase) * 1.72, Math.sin(observerPhase) * 1.12, 0.5);
+      observerNodeRef.current.rotation.set(observerPhase * 0.4, observerPhase * 0.7, 0.2);
+      observerNodeMaterialRef.current.opacity = observerEcho * 0.62;
+    }
+
     rootRef.current.visible = lifecycle.visible > 0.001;
     rootRef.current.scale.setScalar(0.9 + lifecycle.entry * 0.1);
     rootRef.current.rotation.y = THREE.MathUtils.damp(rootRef.current.rotation.y, pointerRef.current.x * 0.018, 4, delta);
@@ -181,6 +193,10 @@ export function TemporalRing({ tier, reducedMotion, hasFinePointer, scrollProgre
           <meshBasicMaterial ref={futureSliceMaterialRef} color="#dbe5e6" transparent opacity={0} depthWrite={false} toneMapped={false} side={THREE.DoubleSide} />
         </mesh>
       </group>
+      <mesh ref={observerNodeRef} position={[1.2, 0.8, 0.5]} scale={[0.16, 0.22, 0.14]}>
+        <icosahedronGeometry args={[1, 0]} />
+        <meshBasicMaterial ref={observerNodeMaterialRef} color="#d1d8d4" transparent opacity={0} depthWrite={false} toneMapped={false} />
+      </mesh>
       {[-1.45, -0.72, 0, 0.72, 1.45].map((x, index) => (
         <mesh key={x} position={[x, index % 2 ? 0.12 : -0.14, 0.25]} rotation={[0, 0, index % 2 ? 0.06 : -0.04]}>
           <boxGeometry args={[0.018, index === 2 ? 0.68 : 0.42, 0.018]} />

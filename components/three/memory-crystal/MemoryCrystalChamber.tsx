@@ -38,8 +38,8 @@ export function MemoryCrystalChamber({ tier, reducedMotion, scrollProgress }: Me
 
   useFrame((_, delta) => {
     const lifecycle = sampleArtifactLifecycle(memoryCrystalArtifact, scrollProgress.current);
-    const recallIn = THREE.MathUtils.smoothstep(scrollProgress.current, 0.986, 0.991);
-    const recallOut = THREE.MathUtils.smoothstep(scrollProgress.current, 0.994, 0.999);
+    const recallIn = THREE.MathUtils.smoothstep(scrollProgress.current, 0.963, 0.968);
+    const recallOut = THREE.MathUtils.smoothstep(scrollProgress.current, 0.972, 0.976);
     const recall = reducedMotion ? lifecycle.inspection * 0.3 : recallIn * (1 - recallOut);
     if (!reducedMotion) timeRef.current += delta;
     panelMaterialRefs.current.forEach((material, index) => {

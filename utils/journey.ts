@@ -27,7 +27,9 @@ export type JourneyStage =
   | "memory-recovery-passage"
   | "object-six-arrival"
   | "object-six-activation"
-  | "object-six-inspection";
+  | "object-six-inspection"
+  | "archive-resolution"
+  | "session-complete";
 
 export const journeyThresholds: Array<{ stage: JourneyStage; start: number }> = [
   { stage: "observation", start: 0 },
@@ -54,11 +56,13 @@ export const journeyThresholds: Array<{ stage: JourneyStage; start: number }> = 
   { stage: "object-five-arrival", start: 0.85 },
   { stage: "object-five-activation", start: 0.875 },
   { stage: "object-five-inspection", start: 0.9 },
-  { stage: "object-five-departure", start: 0.915 },
-  { stage: "memory-recovery-passage", start: 0.925 },
-  { stage: "object-six-arrival", start: 0.94 },
-  { stage: "object-six-activation", start: 0.96 },
-  { stage: "object-six-inspection", start: 0.982 },
+  { stage: "object-five-departure", start: 0.908 },
+  { stage: "memory-recovery-passage", start: 0.914 },
+  { stage: "object-six-arrival", start: 0.925 },
+  { stage: "object-six-activation", start: 0.945 },
+  { stage: "object-six-inspection", start: 0.958 },
+  { stage: "archive-resolution", start: 0.976 },
+  { stage: "session-complete", start: 0.988 },
 ];
 
 export function getJourneyStage(progress: number): JourneyStage {

@@ -52,13 +52,15 @@ const desktopFrames: CameraKeyframe[] = [
   { at: voidArtifact.camera.inspectionAt, position: [0.65, 4.05, -266.1], target: [5.28, 4.2, -282], roll: 0.002, fov: 40 },
   { at: 0.904, position: [1.8, 4.0, -267.2], target: [5.35, 4.2, -282], roll: -0.006, fov: 37.5 },
   { at: 0.912, position: [-0.2, 3.85, -266.3], target: [5.22, 4.15, -282], roll: 0.004, fov: 41.5 },
-  { at: 0.915, position: [3.6, 4.0, -291], target: [2.4, 4.2, -308], roll: 0.001, fov: 43.5 },
-  { at: 0.925, position: [2.1, 4.25, -315], target: [3.7, 4.5, -334], roll: 0, fov: 45 },
+  { at: 0.908, position: [3.6, 4.0, -291], target: [2.4, 4.2, -308], roll: 0.001, fov: 43.5 },
+  { at: 0.914, position: [2.1, 4.25, -315], target: [3.7, 4.5, -334], roll: 0, fov: 45 },
   { at: memoryCrystalArtifact.camera.entryAt, position: [0.4, 4.35, -334], target: [4.2, 4.65, -350], roll: 0.002, fov: 43 },
-  { at: 0.96, position: [0.15, 4.95, -334.5], target: [4.15, 4.85, -350], roll: 0, fov: 41.5 },
+  { at: 0.945, position: [0.15, 4.95, -334.5], target: [4.15, 4.85, -350], roll: 0, fov: 41.5 },
   { at: memoryCrystalArtifact.camera.inspectionAt, position: [-0.4, 5.45, -334.1], target: [4.15, 5.05, -350], roll: -0.002, fov: 40.5 },
-  { at: 0.99, position: [0.8, 5.9, -335], target: [4.25, 5.1, -350], roll: 0.001, fov: 40 },
-  { at: 1, position: [-0.2, 6.2, -334.7], target: [4.15, 5.15, -350], roll: 0, fov: 41 },
+  { at: 0.968, position: [0.35, 5.7, -334.6], target: [4.22, 5.1, -350], roll: 0.001, fov: 40 },
+  { at: 0.976, position: [0.9, 5.95, -335.2], target: [4.2, 5.05, -350], roll: 0, fov: 40.5 },
+  { at: 0.988, position: [-1.15, 6.35, -333.8], target: [4.12, 5.0, -350], roll: 0, fov: 42 },
+  { at: 1, position: [-2.6, 6.7, -332.8], target: [4.05, 4.95, -350], roll: 0, fov: 43.5 },
 ];
 
 const mobileFrames: CameraKeyframe[] = desktopFrames.map((frame, index) => ({
@@ -98,8 +100,8 @@ function interpolateFrame(frames: CameraKeyframe[], progress: number, position: 
     THREE.MathUtils.lerp(from.target[2], to.target[2], eased),
   );
   return {
-    roll: THREE.MathUtils.lerp(from.roll, to.roll, eased),
-    fov: THREE.MathUtils.lerp(from.fov, to.fov, eased),
+    roll: THREE.MathUtils.lerp(from.roll, to.roll, eased) * 0.55,
+    fov: THREE.MathUtils.clamp(THREE.MathUtils.lerp(from.fov, to.fov, eased), 39.5, 46),
   };
 }
 

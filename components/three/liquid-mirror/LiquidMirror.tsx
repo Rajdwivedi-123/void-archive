@@ -16,9 +16,13 @@ type LiquidMirrorProps = {
   scrollProgress: MutableRefObject<number>;
 };
 
+const impossibleRingGeometry = new THREE.TorusGeometry(0.82, 0.018, 5, 40, 4.85);
+
 export function LiquidMirror({ tier, reducedMotion, hasFinePointer, scrollProgress }: LiquidMirrorProps) {
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const groupRef = useRef<THREE.Group>(null);
+  const impossibleRingRef = useRef<THREE.Group>(null);
+  const impossibleRingMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const timeRef = useRef(0);
   const lastProgressRef = useRef(scrollProgress.current);
   const echoRef = useRef(0);
@@ -60,6 +64,9 @@ export function LiquidMirror({ tier, reducedMotion, hasFinePointer, scrollProgre
     lastProgressRef.current = progress;
 
     const activation = lifecycle.activation;
+    const ringTrace = reducedMotion
+      ? lifecycle.inspection * 0.32
+      : THREE.MathUtils.smoothstep(progress, 0.552, 0.558) * (1 - THREE.MathUtils.smoothstep(progress, 0.564, 0.57));
     materialRef.current.uniforms.uTime.value = timeRef.current;
     materialRef.current.uniforms.uReveal.value = reducedMotion ? lifecycle.visible : THREE.MathUtils.smoothstep(activation, 0.02, 0.34);
     materialRef.current.uniforms.uActivation.value = activation;
@@ -73,6 +80,11 @@ export function LiquidMirror({ tier, reducedMotion, hasFinePointer, scrollProgre
     groupRef.current.visible = lifecycle.visible > 0.001;
     groupRef.current.scale.setScalar(0.94 + lifecycle.entry * 0.06);
     groupRef.current.rotation.y = THREE.MathUtils.damp(groupRef.current.rotation.y, -0.035 + lifecycle.inspection * 0.055, 4.2, delta);
+    if (impossibleRingRef.current && impossibleRingMaterialRef.current) {
+      impossibleRingRef.current.rotation.z = 0.42 + timeRef.current * 0.025;
+      impossibleRingRef.current.position.x = -0.36 + reflectedPointerRef.current.x * 0.08;
+      impossibleRingMaterialRef.current.opacity = ringTrace * 0.24;
+    }
   });
 
   return (
@@ -89,6 +101,12 @@ export function LiquidMirror({ tier, reducedMotion, hasFinePointer, scrollProgre
           side={THREE.DoubleSide}
         />
       </mesh>
+      <group ref={impossibleRingRef} position={[-0.36, 0.58, -0.08]} rotation={[0.08, 0.18, 0.42]} scale={[1.15, 0.78, 1]}>
+        <mesh>
+          <primitive attach="geometry" object={impossibleRingGeometry} />
+          <meshBasicMaterial ref={impossibleRingMaterialRef} color="#dce4e4" transparent opacity={0} depthWrite={false} toneMapped={false} side={THREE.DoubleSide} />
+        </mesh>
+      </group>
     </group>
   );
 }

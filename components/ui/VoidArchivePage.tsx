@@ -11,6 +11,7 @@ import { useDeviceProfile } from "@/hooks/useDeviceProfile";
 import { useArchiveScroll } from "@/hooks/useArchiveScroll";
 import { JourneyUI } from "./JourneyUI";
 import { gravityCoreArtifact, liquidMirrorArtifact, memoryCrystalArtifact, neuralRelicArtifact, temporalRingArtifact, voidArtifact } from "@/artifacts/registry";
+import { ArchiveEnding } from "./ArchiveEnding";
 
 export function VoidArchivePage() {
   const [isLoading, setIsLoading] = useState(true);
@@ -59,6 +60,7 @@ export function VoidArchivePage() {
       <ArtifactRecord artifact={voidArtifact} isVisible={voidRecordVisible} reducedMotion={reducedMotion} anomalyActive={journeyStage === "object-five-inspection"} />
       <ArtifactRecord artifact={memoryCrystalArtifact} isVisible={memoryRecordVisible} reducedMotion={reducedMotion} anomalyActive={journeyStage === "object-six-inspection"} />
       <JourneyUI stage={journeyStage} />
+      <ArchiveEnding stage={journeyStage} reducedMotion={reducedMotion} />
       <LoaderOverlay isVisible={isLoading} reducedMotion={reducedMotion} />
       <ArchiveCanvas isSceneReady={!isLoading} reducedMotion={reducedMotion} scrollProgress={progressRef} tier={tier} hasFinePointer={hasFinePointer} onIntroComplete={handleIntroComplete} />
     </div>

@@ -84,6 +84,7 @@ export function NeuralRelic({ tier, reducedMotion, hasFinePointer, scrollProgres
   const branchRefs = useRef<Array<THREE.Group | null>>([]);
   const materialRefs = useRef<Array<THREE.ShaderMaterial | null>>([]);
   const signalRefs = useRef<Array<THREE.Mesh | null>>([]);
+  const voidEchoMaterialRefs = useRef<Array<THREE.MeshBasicMaterial | null>>([]);
   const clusterRef = useRef<THREE.Group>(null);
   const timeRef = useRef(0);
   const adaptationRef = useRef(0);
@@ -160,6 +161,13 @@ export function NeuralRelic({ tier, reducedMotion, hasFinePointer, scrollProgres
       signal.visible = lifecycle.activation > 0.18;
     }
 
+    const voidEcho = reducedMotion
+      ? lifecycle.inspection * 0.18
+      : smootherRange(progress, 0.802, 0.808) * (1 - smootherRange(progress, 0.814, 0.819));
+    voidEchoMaterialRefs.current.forEach((material, index) => {
+      if (material) material.opacity = voidEcho * (index === 1 ? 0.14 : 0.09);
+    });
+
     rootRef.current.visible = lifecycle.visible > 0.001;
     const breath = reducedMotion ? 1 : 1 + Math.sin(timeRef.current * 0.55) * 0.007 * lifecycle.activation;
     rootRef.current.scale.setScalar((0.88 + lifecycle.entry * 0.12) * breath);
@@ -207,6 +215,14 @@ export function NeuralRelic({ tier, reducedMotion, hasFinePointer, scrollProgres
           <meshBasicMaterial color="#d6ddd8" transparent opacity={0.72} toneMapped={false} depthWrite={false} />
         </mesh>
       ))}
+      <group position={[0.25, 0.18, -1.35]} rotation={[0.04, -0.08, 0.12]} scale={[1.42, 0.86, 1]}>
+        {[0.18, 2.2, 4.22].map((rotation, index) => (
+          <mesh key={rotation} rotation={[0, 0, rotation]}>
+            <torusGeometry args={[2.72, index === 1 ? 0.016 : 0.01, 4, 34, 1.42]} />
+            <meshBasicMaterial ref={(material) => { voidEchoMaterialRefs.current[index] = material; }} color="#aeb8b3" transparent opacity={0} depthWrite={false} toneMapped={false} />
+          </mesh>
+        ))}
+      </group>
     </group>
   );
 }

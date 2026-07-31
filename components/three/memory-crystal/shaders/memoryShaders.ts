@@ -91,6 +91,12 @@ export const memoryPlaneFragmentShader = /* glsl */ `
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
   }
 
+  float ringTrace(vec2 p, vec2 center, float radius, float width) {
+    float angle = atan(p.y - center.y, p.x - center.x);
+    float arcMask = smoothstep(-2.5, -1.7, angle) * (1.0 - smoothstep(1.65, 2.45, angle));
+    return (1.0 - smoothstep(width, width + 0.014, abs(length(p - center) - radius))) * arcMask;
+  }
+
   void main() {
     vec2 p = vUv;
     float verticals = line(p.x, 0.2 + uDepth * 0.08, 0.009) * step(0.14, p.y);
@@ -98,7 +104,13 @@ export const memoryPlaneFragmentShader = /* glsl */ `
     float horizontals = line(p.y, 0.28 + uDepth * 0.1, 0.008) * step(0.16, p.x) * step(p.x, 0.8);
     horizontals += line(p.y, 0.7 - uDepth * 0.08, 0.005) * step(0.34, p.x);
     float diagonal = line(p.x + p.y * (0.28 + uDepth * 0.12), 0.82, 0.007);
-    float chamberTrace = clamp(verticals + horizontals + diagonal * (0.35 + uSignature * 0.65), 0.0, 1.0);
+    float gravityOrbit = ringTrace(p, vec2(0.3, 0.68), 0.16, 0.008);
+    float temporalArc = ringTrace(p, vec2(0.7, 0.31), 0.19, 0.009);
+    float neuralBranch = line(p.x + p.y * 0.5, 0.62, 0.006) * step(0.24, p.y) * step(p.y, 0.72);
+    neuralBranch += line(p.x - p.y * 0.38, 0.22, 0.005) * step(0.3, p.x) * step(p.x, 0.66);
+    float voidBoundary = ringTrace(p, vec2(0.47, 0.49), 0.28, 0.006) * step(0.48, p.x + p.y);
+    float callbackTrace = (gravityOrbit + temporalArc + neuralBranch + voidBoundary) * uSignature;
+    float chamberTrace = clamp(verticals + horizontals + diagonal * (0.35 + uSignature * 0.65) + callbackTrace, 0.0, 1.0);
     float recallSweep = exp(-abs(p.y - fract(uTime * 0.035 + uDepth * 0.31)) * 18.0);
     float dissolve = smoothstep(0.24, 0.8, hash(floor(p * vec2(19.0, 13.0)) + floor(uTime * 0.08)) + uRecall * 0.42);
     float cavity = 1.0 - smoothstep(0.22, 0.54, length((p - vec2(0.5)) * vec2(0.72, 1.0)));
@@ -108,7 +120,7 @@ export const memoryPlaneFragmentShader = /* glsl */ `
     vec3 color = mix(graphite, coolMemory, uDepth * 0.6);
     color = mix(color, pearl, chamberTrace * (0.42 + uSignature * 0.4));
     color += pearl * recallSweep * 0.05;
-    float traceAlpha = chamberTrace * dissolve * (0.16 + uSignature * 0.42);
+    float traceAlpha = chamberTrace * dissolve * (0.16 + uSignature * 0.48);
     float atmosphere = cavity * (0.012 + uDepth * 0.018) + recallSweep * 0.018;
     float alpha = uOpacity * uActivation * (traceAlpha + atmosphere + abs(vDrift) * 0.008);
     gl_FragColor = vec4(color, alpha);

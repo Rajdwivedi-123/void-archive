@@ -157,8 +157,8 @@ export function MemoryCrystal({ tier, reducedMotion, hasFinePointer, scrollProgr
     if (!rootRef.current) return;
     const progress = scrollProgress.current;
     const lifecycle = sampleArtifactLifecycle(memoryCrystalArtifact, progress);
-    const recallIn = smoothRange(progress, 0.986, 0.991);
-    const recallOut = smoothRange(progress, 0.994, 0.999);
+    const recallIn = smoothRange(progress, 0.963, 0.968);
+    const recallOut = smoothRange(progress, 0.972, 0.976);
     const recall = recallIn * (1 - recallOut);
     const pointerEnabled = tier === "desktop" && hasFinePointer && !reducedMotion;
     pointerRef.current.x = THREE.MathUtils.damp(pointerRef.current.x, pointerEnabled ? pointer.x : 0, 2.2, delta);

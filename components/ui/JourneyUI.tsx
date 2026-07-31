@@ -10,6 +10,14 @@ const thirdTransitStages: JourneyStage[] = ["object-three-departure", "bio-isola
 const fourthTransitStages: JourneyStage[] = ["object-four-departure", "geometric-isolation-passage"];
 const fifthTransitStages: JourneyStage[] = ["object-five-departure", "memory-recovery-passage"];
 
+const systemEvents: Partial<Record<JourneyStage, { label: string; value: string }>> = {
+  "object-two-inspection": { label: "REFLECTION SOURCE", value: "UNRESOLVED" },
+  "object-three-inspection": { label: "RECORDED EVENT", value: "13 / UNOBSERVED" },
+  "object-four-inspection": { label: "PATTERN MATCH", value: "OBSERVER" },
+  "object-five-inspection": { label: "SECTOR MAP", value: "MISMATCH" },
+  "object-six-inspection": { label: "SEQUENCE VALIDITY", value: "FAILED" },
+};
+
 export function JourneyUI({ stage }: JourneyUIProps) {
   const firstTransit = firstTransitStages.includes(stage);
   const secondTransit = secondTransitStages.includes(stage);
@@ -17,6 +25,7 @@ export function JourneyUI({ stage }: JourneyUIProps) {
   const fourthTransit = fourthTransitStages.includes(stage);
   const fifthTransit = fifthTransitStages.includes(stage);
   const showTransit = firstTransit || secondTransit || thirdTransit || fourthTransit || fifthTransit;
+  const systemEvent = systemEvents[stage];
   const transitCode = fifthTransit ? "V-05 → R-06" : fourthTransit ? "N-04 → V-05" : thirdTransit ? "T-03 → N-04" : secondTransit ? "M-02 → T-03" : "G-01 → M-02";
   const transitLabel = fifthTransit ? "MEMORY RECOVERY ACTIVE" : fourthTransit ? "GEOMETRIC ISOLATION ACTIVE" : thirdTransit ? "BIO-ISOLATION LINK ACTIVE" : secondTransit ? "CHRONOLOGY LINK ACTIVE" : "ARCHIVE LINK ACTIVE";
   return (
@@ -44,6 +53,11 @@ export function JourneyUI({ stage }: JourneyUIProps) {
           <p className="mt-3 text-[8px] tracking-[0.27em] text-white/34">{arrival.detail}</p>
         </div>
       ))}
+      <div className={`absolute left-1/2 top-[18%] -translate-x-1/2 border-y border-white/10 px-5 py-3 text-center transition-all duration-1000 ${systemEvent ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"}`}>
+        <p className="text-[7px] tracking-[0.38em] text-white/28">ARCHIVE CORRELATION</p>
+        <p className="mt-2 text-[8px] tracking-[0.3em] text-white/42">{systemEvent?.label ?? "ARCHIVE SIGNAL"}</p>
+        <p className="mt-1.5 text-[9px] tracking-[0.32em] text-white/76">{systemEvent?.value ?? "PENDING"}</p>
+      </div>
     </div>
   );
 }

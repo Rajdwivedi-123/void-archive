@@ -7,11 +7,12 @@ function smootherRange(value: number, start: number, end: number) {
 
 export function sampleArtifactLifecycle(artifact: ArtifactDefinition, progress: number): ArtifactLifecycleSample {
   const { visibleFrom, entryFrom, activationFrom, inspectionFrom, exitAfter } = artifact.lifecycle;
+  const exit = exitAfter > 1 ? 0 : smootherRange(progress, exitAfter, Math.min(exitAfter + 0.05, 1));
   return {
-    visible: smootherRange(progress, visibleFrom, entryFrom),
+    visible: smootherRange(progress, visibleFrom, entryFrom) * (1 - exit),
     entry: smootherRange(progress, entryFrom, activationFrom),
     activation: smootherRange(progress, activationFrom, inspectionFrom),
     inspection: smootherRange(progress, inspectionFrom, Math.min(exitAfter, 1)),
-    exit: exitAfter > 1 ? 0 : smootherRange(progress, exitAfter, Math.min(exitAfter + 0.05, 1)),
+    exit,
   };
 }
