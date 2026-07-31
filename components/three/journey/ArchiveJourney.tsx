@@ -10,6 +10,9 @@ import { ArchiveCorridor } from "./ArchiveCorridor";
 import { DeepArchive } from "./DeepArchive";
 import { SectorTransition } from "./SectorTransition";
 import { MeasurementPassage } from "./MeasurementPassage";
+import { BioIsolationPassage } from "./BioIsolationPassage";
+import { NeuralRelic } from "../neural-relic/NeuralRelic";
+import { NeuralRelicChamber } from "../neural-relic/NeuralRelicChamber";
 
 type ArchiveJourneyProps = {
   tier: DeviceTier;
@@ -29,6 +32,9 @@ export function ArchiveJourney({ tier, reducedMotion, hasFinePointer, scrollProg
       <MeasurementPassage tier={tier} />
       <TemporalRingChamber tier={tier} scrollProgress={scrollProgress} />
       <TemporalRing tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} />
+      <BioIsolationPassage tier={tier} />
+      <NeuralRelicChamber tier={tier} reducedMotion={reducedMotion} scrollProgress={scrollProgress} />
+      <NeuralRelic tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} />
     </group>
   );
 }

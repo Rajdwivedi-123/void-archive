@@ -12,10 +12,12 @@ export type ArtifactQualityProfile = {
   pointerStrength: number;
   echoSamples?: number;
   temporalSegments?: number;
+  branchCount?: number;
+  signalCount?: number;
 };
 
 export type ArtifactDefinition = {
-  id: "001" | "002" | "003";
+  id: "001" | "002" | "003" | "004";
   archiveCode: string;
   title: string;
   classification: string;
