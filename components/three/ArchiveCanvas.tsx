@@ -28,7 +28,7 @@ export function ArchiveCanvas({
       <Canvas
         dpr={tier === "mobile" ? [0.8, 1.15] : tier === "tablet" ? [1, 1.4] : [1, 1.7]}
         shadows={false}
-        camera={{ position: [0, 0.6, 8], fov: 42, near: 0.1, far: 180 }}
+        camera={{ position: [0, 0.6, 8], fov: 42, near: 0.1, far: 240 }}
         gl={{
           antialias: true,
           alpha: true,

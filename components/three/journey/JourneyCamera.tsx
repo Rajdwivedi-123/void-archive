@@ -5,7 +5,7 @@ import { useRef } from "react";
 import * as THREE from "three";
 import type { DeviceTier } from "@/hooks/useDeviceProfile";
 import type { MutableRefObject } from "react";
-import { liquidMirrorArtifact } from "@/artifacts/registry";
+import { liquidMirrorArtifact, temporalRingArtifact } from "@/artifacts/registry";
 
 type JourneyCameraProps = {
   introComplete: boolean;
@@ -24,23 +24,31 @@ type CameraKeyframe = {
 
 const desktopFrames: CameraKeyframe[] = [
   { at: 0, position: [0.12, 2.2, 8.62], target: [0.18, 2.4, -0.16], roll: 0, fov: 42 },
-  { at: 0.18, position: [0.28, 2.3, 7.05], target: [0.48, 2.55, 0], roll: 0, fov: 40.5 },
-  { at: 0.34, position: [3.85, 2.65, 4.15], target: [0.48, 2.55, 0], roll: -0.012, fov: 42 },
-  { at: 0.48, position: [6.45, 2.85, -2.6], target: [6.75, 2.7, -14], roll: -0.009, fov: 43 },
-  { at: 0.7, position: [6.8, 2.72, -43], target: [6.8, 2.68, -58], roll: 0, fov: 46 },
-  { at: 0.8, position: [6.35, 3.5, -78], target: [5.75, 3.05, -96], roll: 0.007, fov: 44.5 },
+  { at: 0.1, position: [0.28, 2.3, 7.05], target: [0.48, 2.55, 0], roll: 0, fov: 40.5 },
+  { at: 0.2, position: [3.85, 2.65, 4.15], target: [0.48, 2.55, 0], roll: -0.012, fov: 42 },
+  { at: 0.3, position: [6.45, 2.85, -2.6], target: [6.75, 2.7, -14], roll: -0.009, fov: 43 },
+  { at: 0.43, position: [6.8, 2.72, -43], target: [6.8, 2.68, -58], roll: 0, fov: 46 },
+  { at: 0.5, position: [6.35, 3.5, -78], target: [5.75, 3.05, -96], roll: 0.007, fov: 44.5 },
   { at: liquidMirrorArtifact.camera.entryAt, position: [5.15, 3.28, -100.5], target: [4.72, 3.1, -116], roll: 0, fov: 43 },
-  { at: 0.91, position: [3.58, 3.35, -104], target: [4.66, 3.08, -116], roll: -0.006, fov: 41.5 },
+  { at: 0.61, position: [3.58, 3.35, -104], target: [4.66, 3.08, -116], roll: -0.006, fov: 41.5 },
   { at: liquidMirrorArtifact.camera.inspectionAt, position: [3.18, 3.05, -105.2], target: [4.74, 3.12, -116], roll: 0.004, fov: 40.5 },
-  { at: 1, position: [5.86, 3.12, -106], target: [4.5, 3.06, -116], roll: 0, fov: 41 },
+  { at: 0.71, position: [5.86, 3.12, -106], target: [4.5, 3.06, -116], roll: 0, fov: 41 },
+  { at: 0.76, position: [9.65, 3.05, -106.5], target: [11.45, 2.9, -126], roll: -0.008, fov: 44 },
+  { at: 0.82, position: [11.45, 2.8, -140], target: [11.5, 2.9, -158], roll: 0, fov: 46 },
+  { at: temporalRingArtifact.camera.entryAt, position: [10.25, 3.25, -156.2], target: [11.5, 3.35, -170], roll: 0.006, fov: 43 },
+  { at: 0.91, position: [9.8, 3.15, -157], target: [11.5, 3.35, -170], roll: -0.004, fov: 41.5 },
+  { at: temporalRingArtifact.camera.inspectionAt, position: [9.65, 3.05, -157.4], target: [11.5, 3.35, -170], roll: 0.003, fov: 40.5 },
+  { at: 1, position: [13.25, 3.2, -158], target: [11.5, 3.32, -170], roll: 0, fov: 41 },
 ];
 
 const mobileFrames: CameraKeyframe[] = desktopFrames.map((frame, index) => ({
   ...frame,
   position: index === 0
     ? [0, 2.28, 9.5]
-    : index >= 6
-      ? [4.72, frame.position[1] + 0.18, frame.position[2] - 0.35]
+    : index >= 11
+      ? [11.5, frame.position[1] + 0.18, frame.position[2] - 0.35]
+      : index >= 6
+        ? [4.72, frame.position[1] + 0.18, frame.position[2] - 0.35]
       : [frame.position[0], frame.position[1] + (index > 3 ? 0.15 : 0), frame.position[2]],
   roll: 0,
   fov: index > 3 ? 48 : 44,

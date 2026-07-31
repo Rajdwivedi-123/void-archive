@@ -12,8 +12,16 @@ export function DeepArchive({ tier }: DeepArchiveProps) {
         <boxGeometry args={[42, 0.4, 52]} />
         <meshStandardMaterial color="#020303" metalness={0.7} roughness={0.45} />
       </mesh>
-      <mesh position={[6.8, 10, -138]}>
-        <boxGeometry args={[44, 22, 1.6]} />
+      <mesh position={[-3.6, 10, -138]}>
+        <boxGeometry args={[23.2, 22, 1.6]} />
+        <meshStandardMaterial color="#010202" metalness={0.66} roughness={0.5} />
+      </mesh>
+      <mesh position={[21.85, 10, -138]}>
+        <boxGeometry args={[14.3, 22, 1.6]} />
+        <meshStandardMaterial color="#010202" metalness={0.66} roughness={0.5} />
+      </mesh>
+      <mesh position={[11.5, 8.55, -138]}>
+        <boxGeometry args={[6.4, 5.1, 1.6]} />
         <meshStandardMaterial color="#010202" metalness={0.66} roughness={0.5} />
       </mesh>
       {distantBays.map((x, index) => (

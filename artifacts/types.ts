@@ -10,10 +10,12 @@ export type ArtifactQualityProfile = {
   membraneSegments: number;
   reflectionLayers: number;
   pointerStrength: number;
+  echoSamples?: number;
+  temporalSegments?: number;
 };
 
 export type ArtifactDefinition = {
-  id: "001" | "002";
+  id: "001" | "002" | "003";
   archiveCode: string;
   title: string;
   classification: string;

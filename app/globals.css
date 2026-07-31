@@ -36,15 +36,15 @@ canvas {
 }
 
 .journey-scroll-space {
-  min-height: 680svh;
+  min-height: 840svh;
 }
 
 @media (max-width: 1023px) {
-  .journey-scroll-space { min-height: 610svh; }
+  .journey-scroll-space { min-height: 760svh; }
 }
 
 @media (max-width: 639px) {
-  .journey-scroll-space { min-height: 530svh; }
+  .journey-scroll-space { min-height: 680svh; }
 }
 
 .artifact-panel {
