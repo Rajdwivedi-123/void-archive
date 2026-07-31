@@ -6,6 +6,7 @@ import type { ArtifactId } from "@/artifacts/inspection";
 import { useReality, useRealitySnapshot } from "@/reality/RealityProvider";
 import type { RealitySnapshot } from "@/reality/realityTypes";
 import type { GraphicsQuality } from "@/hooks/useGraphicsQuality";
+import { useArchiveAudio } from "@/audio/useArchiveAudio";
 
 type ArchiveSection = "index" | "connections" | "sectors" | "system";
 
@@ -64,6 +65,7 @@ export function ArchiveMode({
   const [section, setSection] = useState<ArchiveSection>("index");
   const [recordIndex, setRecordIndex] = useState(0);
   const reality = useReality();
+  const audio = useArchiveAudio();
   const session = useRealitySnapshot();
   const selectedArtifact = archiveArtifacts.find((artifact) => artifact.id === selectedId) ?? archiveArtifacts[0];
   const selectedData = archiveData[selectedArtifact.id];
@@ -164,7 +166,7 @@ export function ArchiveMode({
                   <div>
                     <p className="mb-3 text-[8px] tracking-[0.36em] text-white/28">CLASSIFIED RECORDS</p>
                     {visibleRecords.map((record, index) => (
-                      <button key={record.code} className={`block min-h-11 w-full border-t border-white/8 text-left text-[8px] tracking-[0.22em] ${recordIndex === index ? "text-white/78" : "text-white/34 hover:text-white/58"}`} onClick={() => { setRecordIndex(index); reality.openRecord(selectedArtifact.id, record.code); }} type="button">{record.type} / {record.code}</button>
+                      <button key={record.code} className={`block min-h-11 w-full border-t border-white/8 text-left text-[8px] tracking-[0.22em] ${recordIndex === index ? "text-white/78" : "text-white/34 hover:text-white/58"}`} onClick={() => { setRecordIndex(index); reality.openRecord(selectedArtifact.id, record.code); audio.cueInteraction("record"); }} type="button">{record.type} / {record.code}</button>
                     ))}
                   </div>
                   <div className="border-l border-white/14 py-2 pl-5">
@@ -178,7 +180,7 @@ export function ArchiveMode({
 
           {section === "connections" && <ConnectionMap discoveredCount={discoveredCount} revealN07={postJourney || session.event13Discovered} mirrorDepth={session.mirrorObservationDepth} archetype={session.archetype} route={session.n07Route} onSelect={(id) => { selectArtifact(id); setSection("index"); }} />}
           {section === "sectors" && <SectorMap discoveredCount={discoveredCount} revealN07={postJourney || session.event13Discovered} voidMeasured={session.voidProbeCount > 0} onSelect={(id) => { selectArtifact(id); setSection("index"); }} />}
-          {section === "system" && <SystemPanel discoveredCount={discoveredCount} postJourney={postJourney} session={session} quality={graphicsQuality} onReset={() => { if (window.confirm("Reset the local observer trace? This cannot be undone.")) reality.resetTrace(); }} />}
+          {section === "system" && <SystemPanel discoveredCount={discoveredCount} postJourney={postJourney} session={session} quality={graphicsQuality} audioEnabled={audio.enabled} onReset={() => { if (window.confirm("Reset the local observer trace? This cannot be undone.")) { audio.cueInteraction("reset"); reality.resetTrace(); } }} />}
         </div>
       </div>
     </section>
@@ -233,14 +235,14 @@ function SectorMap({ discoveredCount, revealN07, voidMeasured, onSelect }: { dis
   );
 }
 
-function SystemPanel({ discoveredCount, postJourney, session, quality, onReset }: { discoveredCount: number; postJourney: boolean; session: RealitySnapshot; quality: GraphicsQuality; onReset: () => void }) {
+function SystemPanel({ discoveredCount, postJourney, session, quality, audioEnabled, onReset }: { discoveredCount: number; postJourney: boolean; session: RealitySnapshot; quality: GraphicsQuality; audioEnabled: boolean; onReset: () => void }) {
   const rows = [
     ["ARCHIVE STATUS", `${discoveredCount} ANOMALIES CONTAINED`], ["ACTIVE SECTORS", String(discoveredCount).padStart(2, "0")],
     ["OBSERVER STATUS", postJourney ? "TRACKED / 07" : `PATTERN ${Math.round(session.observerConfidence * 100)}%`], ["SESSION", `LOCAL / ${session.seed}`],
     ["OBSERVER ARCHETYPE", session.archetype.toUpperCase()], ["OBSERVER AFFINITY", session.affinity.toUpperCase()],
     ["OBSERVATION QUALITY", session.observationQuality.toUpperCase()], ["N-07 ROUTE", (session.n07Route ?? "UNRESOLVED").toUpperCase()],
-    ["RENDER STATUS", "NOMINAL"], ["AUDIO BUS", "STANDBY / NO ASSET LINK"],
+    ["RENDER STATUS", "NOMINAL"], ["AUDIO BUS", audioEnabled ? "ACTIVE" : "STANDBY"], ["SPATIAL FIELD", audioEnabled ? "ONLINE" : "OFFLINE"],
     ["GRAPHICS TIER", quality.toUpperCase()],
   ];
-  return <div className="mx-auto max-w-3xl"><p className="text-[8px] tracking-[0.42em] text-white/28">ARCHIVE OPERATING LAYER</p><h3 className="mt-4 text-2xl tracking-[0.28em] sm:text-4xl">SYSTEM</h3><div className="mt-10 border-y border-white/10">{rows.map(([label, value]) => <div key={label} className="grid min-h-16 grid-cols-[1fr_1.25fr] items-center border-b border-white/7 text-[8px] tracking-[0.24em]"><span className="text-white/29">{label}</span><span className="text-white/68">{value}</span></div>)}</div><div className="mt-7 border-l border-white/12 pl-4"><p className="text-[8px] leading-5 tracking-[0.22em] text-white/32">SUBJECT 07 / OBSERVER RECORD<br />CLASSIFICATION CONFIDENCE / {Math.round(session.observerConfidence * 100)}%<br />TRACE STORAGE / LOCAL DEVICE ONLY</p><button type="button" className="mt-5 min-h-11 border border-[#aa9a91]/25 px-4 text-[8px] tracking-[.25em] text-[#b8a9a0]/62 hover:text-white" onClick={onReset}>RESET OBSERVER TRACE</button></div></div>;
+  return <div className="mx-auto max-w-3xl"><p className="text-[8px] tracking-[0.42em] text-white/28">ARCHIVE OPERATING LAYER</p><h3 className="mt-4 text-2xl tracking-[0.28em] sm:text-4xl">SYSTEM</h3><div className="mt-10 border-y border-white/10">{rows.map(([label, value]) => <div key={label} className="grid min-h-16 grid-cols-[1fr_1.25fr] items-center border-b border-white/7 text-[8px] tracking-[0.24em]"><span className="text-white/29">{label}</span><span className="text-white/68">{value}</span></div>)}</div><div className="mt-7 border-l border-white/12 pl-4"><p className="text-[8px] leading-5 tracking-[0.22em] text-white/32">SUBJECT 07 / OBSERVER RECORD<br />CLASSIFICATION CONFIDENCE / {Math.round(session.observerConfidence * 100)}%<br />TRACE STORAGE / LOCAL DEVICE ONLY<br />AUDIO GENERATION / PROCEDURAL · LOCAL</p><button type="button" className="mt-5 min-h-11 border border-[#aa9a91]/25 px-4 text-[8px] tracking-[.25em] text-[#b8a9a0]/62 hover:text-white" onClick={onReset}>RESET OBSERVER TRACE</button></div></div>;
 }

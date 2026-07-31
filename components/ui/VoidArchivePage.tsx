@@ -20,6 +20,9 @@ import type { ArtifactId, InspectionControl } from "@/artifacts/inspection";
 import { RealityProvider, useReality, useRealitySnapshot } from "@/reality/RealityProvider";
 import { RealityEffects } from "./RealityEffects";
 import { useGraphicsQuality } from "@/hooks/useGraphicsQuality";
+import { AudioProvider } from "@/audio/AudioProvider";
+import { useArchiveAudio } from "@/audio/useArchiveAudio";
+import { SoundControl } from "./SoundControl";
 
 function stageArtifact(stage: string): ArtifactId | null {
   if (stage.startsWith("object-two")) return "002";
@@ -32,7 +35,7 @@ function stageArtifact(stage: string): ArtifactId | null {
 }
 
 export function VoidArchivePage() {
-  return <RealityProvider><VoidArchiveExperience /></RealityProvider>;
+  return <RealityProvider><AudioProvider><VoidArchiveExperience /></AudioProvider></RealityProvider>;
 }
 
 function VoidArchiveExperience() {
@@ -50,6 +53,7 @@ function VoidArchiveExperience() {
   const freezeTimerRef = useRef<number | null>(null);
   const inspectionRef = useRef<InspectionControl>({ active: false, artifactId: null, primary: 0.5, pointerX: 0, pointerY: 0, scanner: false, observerConfidence: 0, sessionBias: 0, freezeActive: false });
   const reality = useReality();
+  const audio = useArchiveAudio();
   const realitySession = useRealitySnapshot();
   const reducedMotion = useReducedMotion();
   const { tier, hasFinePointer } = useDeviceProfile();
@@ -96,6 +100,10 @@ function VoidArchiveExperience() {
   }, [archiveOpen, inspectedId, reality, realityArtifact, reducedMotion, tier]);
 
   useEffect(() => {
+    audio.syncScene({ stage: journeyStage, artifact: realityArtifact, inspecting: Boolean(inspectedId), control: inspectionPrimary, scanner: scannerActive, archiveOpen, freeze: freezeActive, mobile: tier === "mobile" });
+  }, [archiveOpen, audio, freezeActive, inspectedId, inspectionPrimary, journeyStage, realityArtifact, scannerActive, tier]);
+
+  useEffect(() => {
     if (!inspectedId) return;
     reality.beginInspection(inspectedId);
     return () => reality.endInspection(inspectedId);
@@ -103,9 +111,9 @@ function VoidArchiveExperience() {
 
   useEffect(() => {
     if (journeyStage !== "session-complete") return;
-    const frame = window.requestAnimationFrame(() => { setArchiveUnlocked(true); reality.unlockArchive(); });
+    const frame = window.requestAnimationFrame(() => { setArchiveUnlocked(true); reality.unlockArchive(); audio.cueInteraction("subject"); });
     return () => window.cancelAnimationFrame(frame);
-  }, [journeyStage, reality]);
+  }, [audio, journeyStage, reality]);
 
   useEffect(() => {
     if (journeyStage !== "memory-recovery-passage" || realitySession.realityFreezeSeen) return;
@@ -172,9 +180,10 @@ function VoidArchiveExperience() {
         inspectionRef.current.pointerX = 0;
         inspectionRef.current.pointerY = 0;
         setInspectedId(id);
+        audio.cueInteraction("inspect");
       }, reducedMotion ? 80 : 1450);
     }
-  }, [reality, reducedMotion]);
+  }, [audio, reality, reducedMotion]);
 
   const handleInspectionPointer = useCallback((x: number, y: number) => {
     inspectionRef.current.pointerX = x;
@@ -185,12 +194,16 @@ function VoidArchiveExperience() {
     if (!inspectedId) return;
     setInspectionPrimary(value);
     reality.recordControl(inspectedId, value);
-  }, [inspectedId, reality]);
+    audio.cueControl(inspectedId, value);
+  }, [audio, inspectedId, reality]);
 
   const handleScanner = useCallback((active: boolean) => {
     setScannerActive(active);
+    if (active) audio.cueInteraction("scanner");
     if (active && inspectedId === "005") reality.recordVoidProbe();
-  }, [inspectedId, reality]);
+  }, [audio, inspectedId, reality]);
+
+  const openArchive = useCallback(() => { audio.cueInteraction("archive"); setArchiveOpen(true); }, [audio]);
 
   const interactionHidden = archiveOpen || Boolean(inspectedArtifact);
   const gravityRecordVisible = !interactionHidden && showInfo && (journeyStage === "observation" || journeyStage === "approach");
@@ -211,11 +224,12 @@ function VoidArchiveExperience() {
       <ArtifactRecord artifact={voidArtifact} isVisible={voidRecordVisible} reducedMotion={reducedMotion} anomalyActive={journeyStage === "object-five-inspection"} />
       <ArtifactRecord artifact={memoryCrystalArtifact} isVisible={memoryRecordVisible} reducedMotion={reducedMotion} anomalyActive={journeyStage === "object-six-inspection"} />
       {!interactionHidden && <JourneyUI stage={journeyStage} snapshot={realitySession} />}
-      <ArchiveEnding stage={journeyStage} reducedMotion={reducedMotion} onOpenArchive={() => setArchiveOpen(true)} />
-      <ArchiveCommand active={introComplete && !interactionHidden && journeyStage !== "session-complete"} discoveredCount={discoveredCount} onOpen={() => setArchiveOpen(true)} />
+      <ArchiveEnding stage={journeyStage} reducedMotion={reducedMotion} onOpenArchive={openArchive} />
+      <ArchiveCommand active={introComplete && !interactionHidden && journeyStage !== "session-complete"} discoveredCount={discoveredCount} onOpen={openArchive} />
       <ArchiveMode open={archiveOpen} discoveredCount={discoveredCount} selectedId={selectedId} postJourney={postJourney} reducedMotion={reducedMotion} graphicsQuality={quality} onClose={() => setArchiveOpen(false)} onSelect={setSelectedId} onRevisit={(id) => seekArtifact(id, false)} onInspect={(id) => seekArtifact(id, true)} />
       <InspectMode artifact={inspectedArtifact} primary={inspectionPrimary} scanner={scannerActive} reducedMotion={reducedMotion} onPrimary={handlePrimary} onScanner={handleScanner} onPointer={handleInspectionPointer} onExit={() => setInspectedId(null)} />
       <RealityEffects artifact={interactionHidden ? realityArtifact : stageArtifact(journeyStage)} primary={inspectionPrimary} freezeActive={freezeActive} reducedMotion={reducedMotion} />
+      <SoundControl active={!isLoading && introComplete} mode={archiveOpen ? "archive" : inspectedArtifact ? "inspect" : "journey"} />
       <ObserverDebugPanel />
       <LoaderOverlay isVisible={isLoading} reducedMotion={reducedMotion} returningVisitor={realitySession.returningVisitor} />
       <ArchiveCanvas isSceneReady={!isLoading} reducedMotion={reducedMotion} scrollProgress={progressRef} inspection={inspectionRef} tier={tier} quality={quality} hasFinePointer={hasFinePointer} onIntroComplete={handleIntroComplete} />
