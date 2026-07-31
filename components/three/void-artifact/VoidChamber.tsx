@@ -42,10 +42,10 @@ export function VoidChamber({ tier, reducedMotion, scrollProgress }: VoidChamber
   useFrame((_, delta) => {
     const progress = scrollProgress.current;
     const lifecycle = sampleArtifactLifecycle(voidArtifact, progress);
-    const signatureIn = smoothRange(progress, 0.982, 0.989);
-    const signatureOut = smoothRange(progress, 0.991, 0.998);
+    const signatureIn = smoothRange(progress, 0.899, 0.905);
+    const signatureOut = smoothRange(progress, 0.907, 0.913);
     const collapse = reducedMotion ? lifecycle.inspection * 0.28 : signatureIn * (1 - signatureOut);
-    const aftermath = smoothRange(progress, 0.993, 0.999);
+    const aftermath = smoothRange(progress, 0.908, 0.914);
 
     floorMaterialRefs.current.forEach((material, index) => {
       if (!material) return;

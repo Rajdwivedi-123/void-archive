@@ -87,12 +87,12 @@ export function TemporalRing({ tier, reducedMotion, hasFinePointer, scrollProgre
     if (!rootRef.current) return;
     const progress = scrollProgress.current;
     const lifecycle = sampleArtifactLifecycle(temporalRingArtifact, progress);
-    const slowIn = smoothRange(progress, 0.704, 0.718);
-    const slowOut = smoothRange(progress, 0.726, 0.742);
+    const slowIn = smoothRange(progress, 0.669, 0.677);
+    const slowOut = smoothRange(progress, 0.683, 0.691);
     const slow = slowIn * (1 - slowOut);
-    const future = smoothRange(progress, 0.708, 0.724) * (1 - smoothRange(progress, 0.732, 0.746));
-    const catchUp = smoothRange(progress, 0.728, 0.748);
-    const collapse = smoothRange(progress, 0.744, 0.758);
+    const future = smoothRange(progress, 0.671, 0.68) * (1 - smoothRange(progress, 0.686, 0.694));
+    const catchUp = smoothRange(progress, 0.684, 0.695);
+    const collapse = smoothRange(progress, 0.693, 0.704);
     const targetTimeScale = reducedMotion ? 0 : THREE.MathUtils.lerp(1, 0.08, slow);
     timeScaleRef.current = THREE.MathUtils.damp(timeScaleRef.current, targetTimeScale, 5, delta);
     timeRef.current += delta * timeScaleRef.current;

@@ -107,8 +107,8 @@ export function VoidArtifact({ tier, reducedMotion, hasFinePointer, scrollProgre
     if (!rootRef.current || !boundaryMaterialRef.current) return;
     const progress = scrollProgress.current;
     const lifecycle = sampleArtifactLifecycle(voidArtifact, progress);
-    const signatureIn = smoothRange(progress, 0.982, 0.989);
-    const signatureOut = smoothRange(progress, 0.991, 0.998);
+    const signatureIn = smoothRange(progress, 0.899, 0.905);
+    const signatureOut = smoothRange(progress, 0.907, 0.913);
     const collapse = signatureIn * (1 - signatureOut);
     const motion = reducedMotion ? 0 : 1;
     timeRef.current += delta * motion;

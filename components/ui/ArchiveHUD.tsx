@@ -1,5 +1,5 @@
 import type { JourneyStage } from "@/utils/journey";
-import { liquidMirrorArtifact, neuralRelicArtifact, temporalRingArtifact, voidArtifact } from "@/artifacts/registry";
+import { liquidMirrorArtifact, memoryCrystalArtifact, neuralRelicArtifact, temporalRingArtifact, voidArtifact } from "@/artifacts/registry";
 
 type ArchiveHUDProps = { active: boolean; stage: JourneyStage };
 
@@ -8,14 +8,16 @@ export function ArchiveHUD({ active, stage }: ArchiveHUDProps) {
   const objectThreeActive = stage.startsWith("object-three");
   const objectFourActive = stage.startsWith("object-four");
   const objectFiveActive = stage.startsWith("object-five");
-  const approachingFive = stage === "object-four-departure" || stage === "geometric-isolation-passage" || objectFiveActive;
-  const approachingFour = !approachingFive && (stage === "object-three-departure" || stage === "bio-isolation-passage" || objectFourActive);
-  const approachingThree = !approachingFour && !approachingFive && (stage === "object-two-departure" || stage === "measurement-passage" || objectThreeActive);
-  const approachingTwo = !approachingThree && !approachingFour && !approachingFive && (stage === "deep-archive" || objectTwoActive);
-  const inTransit = ["departure", "exit", "corridor", "deep-archive", "object-two-departure", "measurement-passage", "object-three-departure", "bio-isolation-passage", "object-four-departure", "geometric-isolation-passage"].includes(stage);
-  const activeIndex = approachingFive ? 5 : approachingFour ? 4 : approachingThree ? 3 : approachingTwo ? 2 : 1;
-  const containment = objectFiveActive ? voidArtifact.containment : objectFourActive ? neuralRelicArtifact.containment : objectThreeActive ? temporalRingArtifact.containment : objectTwoActive ? liquidMirrorArtifact.containment : "CONTAINMENT";
-  const sector = objectFiveActive ? "SECTOR V-05  /  SPATIAL RETURN NULL" : objectFourActive ? "SECTOR N-04  /  ADAPTATION LIVE" : objectThreeActive ? "SECTOR T-03  /  CHRONOLOGY LIVE" : objectTwoActive ? "SECTOR M-02  /  OBSERVATION LIVE" : `SECTOR G-01  /  FIELD LOCK ${active ? "NOMINAL" : "PENDING"}`;
+  const objectSixActive = stage.startsWith("object-six");
+  const approachingSix = stage === "object-five-departure" || stage === "memory-recovery-passage" || objectSixActive;
+  const approachingFive = !approachingSix && (stage === "object-four-departure" || stage === "geometric-isolation-passage" || objectFiveActive);
+  const approachingFour = !approachingFive && !approachingSix && (stage === "object-three-departure" || stage === "bio-isolation-passage" || objectFourActive);
+  const approachingThree = !approachingFour && !approachingFive && !approachingSix && (stage === "object-two-departure" || stage === "measurement-passage" || objectThreeActive);
+  const approachingTwo = !approachingThree && !approachingFour && !approachingFive && !approachingSix && (stage === "deep-archive" || objectTwoActive);
+  const inTransit = ["departure", "exit", "corridor", "deep-archive", "object-two-departure", "measurement-passage", "object-three-departure", "bio-isolation-passage", "object-four-departure", "geometric-isolation-passage", "object-five-departure", "memory-recovery-passage"].includes(stage);
+  const activeIndex = approachingSix ? 6 : approachingFive ? 5 : approachingFour ? 4 : approachingThree ? 3 : approachingTwo ? 2 : 1;
+  const containment = objectSixActive ? memoryCrystalArtifact.containment : objectFiveActive ? voidArtifact.containment : objectFourActive ? neuralRelicArtifact.containment : objectThreeActive ? temporalRingArtifact.containment : objectTwoActive ? liquidMirrorArtifact.containment : "CONTAINMENT";
+  const sector = objectSixActive ? "SECTOR R-06  /  RECALL IN PROGRESS" : objectFiveActive ? "SECTOR V-05  /  SPATIAL RETURN NULL" : objectFourActive ? "SECTOR N-04  /  ADAPTATION LIVE" : objectThreeActive ? "SECTOR T-03  /  CHRONOLOGY LIVE" : objectTwoActive ? "SECTOR M-02  /  OBSERVATION LIVE" : `SECTOR G-01  /  FIELD LOCK ${active ? "NOMINAL" : "PENDING"}`;
   return (
     <div className="pointer-events-none fixed inset-0 z-20 flex flex-col justify-between p-4 text-[10px] uppercase tracking-[0.34em] text-white/72 sm:p-6 lg:p-8">
       <div className="flex items-start justify-between gap-2 sm:gap-4">
@@ -36,11 +38,11 @@ export function ArchiveHUD({ active, stage }: ArchiveHUDProps) {
             <span className={`h-1 w-1 rounded-full ${active ? "status-pulse bg-white/75" : "bg-white/25"}`} />
             {inTransit ? "ARCHIVE LINK / ACTIVE" : `${containment} / ${active ? "ACTIVE" : "STANDBY"}`}
           </p>
-          <p className="mt-2 text-[9px] leading-5 tracking-[0.26em] text-white/38">{inTransit ? approachingFive ? "DEPTH 05  /  GEOMETRIC ISOLATION" : approachingFour ? "DEPTH 04  /  BIO-ISOLATION" : approachingThree ? "DEPTH 03  /  MEASUREMENT PASSAGE" : "DEPTH 02  /  ACCESS RESTRICTED" : sector}</p>
+          <p className="mt-2 text-[9px] leading-5 tracking-[0.26em] text-white/38">{inTransit ? approachingSix ? "DEPTH 06  /  MEMORY RECOVERY" : approachingFive ? "DEPTH 05  /  GEOMETRIC ISOLATION" : approachingFour ? "DEPTH 04  /  BIO-ISOLATION" : approachingThree ? "DEPTH 03  /  MEASUREMENT PASSAGE" : "DEPTH 02  /  ACCESS RESTRICTED" : sector}</p>
         </div>
         <div className="text-right text-white/44">
           <p>{stage.endsWith("inspection") ? "HOLD" : "SCROLL"}</p>
-          <p className="mt-2 text-xs">{objectFiveActive ? "05" : objectFourActive ? "04" : objectThreeActive ? "03" : objectTwoActive ? "02" : "↓"}</p>
+          <p className="mt-2 text-xs">{objectSixActive ? "06" : objectFiveActive ? "05" : objectFourActive ? "04" : objectThreeActive ? "03" : objectTwoActive ? "02" : "↓"}</p>
         </div>
       </div>
     </div>

@@ -16,10 +16,12 @@ export type ArtifactQualityProfile = {
   signalCount?: number;
   voidParticles?: number;
   fractureSeams?: number;
+  memoryLayers?: number;
+  memoryFractures?: number;
 };
 
 export type ArtifactDefinition = {
-  id: "001" | "002" | "003" | "004" | "005";
+  id: "001" | "002" | "003" | "004" | "005" | "006";
   archiveCode: string;
   title: string;
   classification: string;

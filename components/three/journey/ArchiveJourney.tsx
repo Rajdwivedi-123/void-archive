@@ -16,6 +16,9 @@ import { NeuralRelicChamber } from "../neural-relic/NeuralRelicChamber";
 import { GeometricIsolationPassage } from "./GeometricIsolationPassage";
 import { VoidArtifact } from "../void-artifact/VoidArtifact";
 import { VoidChamber } from "../void-artifact/VoidChamber";
+import { MemoryRecoveryPassage } from "./MemoryRecoveryPassage";
+import { MemoryCrystal } from "../memory-crystal/MemoryCrystal";
+import { MemoryCrystalChamber } from "../memory-crystal/MemoryCrystalChamber";
 
 type ArchiveJourneyProps = {
   tier: DeviceTier;
@@ -41,6 +44,9 @@ export function ArchiveJourney({ tier, reducedMotion, hasFinePointer, scrollProg
       <GeometricIsolationPassage tier={tier} />
       <VoidChamber tier={tier} reducedMotion={reducedMotion} scrollProgress={scrollProgress} />
       <VoidArtifact tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} />
+      <MemoryRecoveryPassage tier={tier} />
+      <MemoryCrystalChamber tier={tier} reducedMotion={reducedMotion} scrollProgress={scrollProgress} />
+      <MemoryCrystal tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} />
     </group>
   );
 }
