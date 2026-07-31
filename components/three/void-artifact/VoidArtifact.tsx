@@ -116,7 +116,7 @@ export function VoidArtifact({ tier, reducedMotion, hasFinePointer, scrollProgre
     const signatureOut = smoothRange(progress, 0.907, 0.913);
     const collapse = signatureIn * (1 - signatureOut);
     const motion = reducedMotion ? 0 : 1;
-    timeRef.current += delta * motion;
+    if (!inspection.current.freezeActive) timeRef.current += delta * motion;
 
     const pointerEnabled = tier === "desktop" && hasFinePointer && !reducedMotion;
     pointerRef.current.x = THREE.MathUtils.damp(pointerRef.current.x, inspecting ? inspection.current.pointerX : pointerEnabled ? pointer.x : 0, 1.8, delta);

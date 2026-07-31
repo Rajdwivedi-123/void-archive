@@ -53,7 +53,7 @@ export function LiquidMirror({ tier, reducedMotion, hasFinePointer, scrollProgre
     const inspecting = inspection.current.active && inspection.current.artifactId === "002";
     const inspectAmount = inspecting ? 1 : 0;
     const motionScale = reducedMotion ? liquidMirrorArtifact.reducedMotion.surfaceMotion : 1;
-    timeRef.current += delta * motionScale;
+    if (!inspection.current.freezeActive) timeRef.current += delta * motionScale;
 
     const pointerEnabled = hasFinePointer && tier === "desktop" && !reducedMotion;
     const targetX = inspecting ? inspection.current.pointerX : pointerEnabled ? pointer.x * quality.pointerStrength : 0;

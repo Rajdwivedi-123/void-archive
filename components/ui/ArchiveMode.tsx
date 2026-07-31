@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { archiveArtifacts, archiveData } from "@/artifacts/archiveData";
 import type { ArtifactId } from "@/artifacts/inspection";
+import { useReality, useRealitySnapshot } from "@/reality/RealityProvider";
 
 type ArchiveSection = "index" | "connections" | "sectors" | "system";
 
@@ -58,8 +59,13 @@ export function ArchiveMode({
 }: ArchiveModeProps) {
   const [section, setSection] = useState<ArchiveSection>("index");
   const [recordIndex, setRecordIndex] = useState(0);
+  const reality = useReality();
+  const session = useRealitySnapshot();
   const selectedArtifact = archiveArtifacts.find((artifact) => artifact.id === selectedId) ?? archiveArtifacts[0];
   const selectedData = archiveData[selectedArtifact.id];
+  const event13Record = { type: "EVENT 13", code: `T/${session.seed.slice(0, 3)}`, body: "OBSERVATION STATUS / UNOBSERVED · RECORD CREATION / 04.731 SEC BEFORE EVENT · LOCATION / N-07" };
+  const visibleRecords = selectedArtifact.id === "003" && session.event13Discovered ? [...selectedData.records, event13Record] : selectedData.records;
+  const selectedRecord = visibleRecords[Math.min(recordIndex, visibleRecords.length - 1)];
 
   const selectArtifact = (id: ArtifactId) => {
     setRecordIndex(0);
@@ -81,7 +87,7 @@ export function ArchiveMode({
       inert={!open}
       aria-label="Interactive archive"
       data-archive-mode
-      className={`fixed inset-0 z-[46] overflow-hidden bg-black/72 text-white backdrop-blur-[5px] transition-all ${reducedMotion ? "duration-0" : "duration-700"} ${open ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
+      className={`fixed inset-0 z-[46] overflow-hidden bg-black/72 text-white backdrop-blur-[5px] transition-all reality-archive-${selectedId} ${reducedMotion ? "duration-0" : "duration-700"} ${open ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
     >
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:18vw_100%] opacity-50" />
       <div className="relative flex h-full min-h-0 flex-col px-5 py-5 sm:px-8 sm:py-7 lg:px-12 lg:py-9">
@@ -150,29 +156,29 @@ export function ArchiveMode({
                 <div className="mt-10 grid gap-5 sm:grid-cols-[15rem_1fr]">
                   <div>
                     <p className="mb-3 text-[8px] tracking-[0.36em] text-white/28">CLASSIFIED RECORDS</p>
-                    {selectedData.records.map((record, index) => (
-                      <button key={record.code} className={`block min-h-11 w-full border-t border-white/8 text-left text-[8px] tracking-[0.22em] ${recordIndex === index ? "text-white/78" : "text-white/34 hover:text-white/58"}`} onClick={() => setRecordIndex(index)} type="button">{record.type} / {record.code}</button>
+                    {visibleRecords.map((record, index) => (
+                      <button key={record.code} className={`block min-h-11 w-full border-t border-white/8 text-left text-[8px] tracking-[0.22em] ${recordIndex === index ? "text-white/78" : "text-white/34 hover:text-white/58"}`} onClick={() => { setRecordIndex(index); reality.openRecord(selectedArtifact.id, record.code); }} type="button">{record.type} / {record.code}</button>
                     ))}
                   </div>
                   <div className="border-l border-white/14 py-2 pl-5">
-                    <p className="text-[8px] tracking-[0.34em] text-white/30">{selectedData.records[recordIndex].type}</p>
-                    <p className={`mt-4 max-w-lg text-[10px] leading-6 tracking-[0.2em] ${selectedData.records[recordIndex].restricted ? "text-[#b9aaa0]/65" : "text-white/58"}`}>{selectedData.records[recordIndex].body}</p>
+                    <p className="text-[8px] tracking-[0.34em] text-white/30">{selectedRecord.type}</p>
+                    <p className={`mt-4 max-w-lg text-[10px] leading-6 tracking-[0.2em] ${"restricted" in selectedRecord && selectedRecord.restricted ? "text-[#b9aaa0]/65" : "text-white/58"}`}>{selectedRecord.body}</p>
                   </div>
                 </div>
               </article>
             </div>
           )}
 
-          {section === "connections" && <ConnectionMap discoveredCount={discoveredCount} onSelect={(id) => { selectArtifact(id); setSection("index"); }} />}
-          {section === "sectors" && <SectorMap discoveredCount={discoveredCount} onSelect={(id) => { selectArtifact(id); setSection("index"); }} />}
-          {section === "system" && <SystemPanel discoveredCount={discoveredCount} postJourney={postJourney} />}
+          {section === "connections" && <ConnectionMap discoveredCount={discoveredCount} revealN07={postJourney || session.event13Discovered} mirrorDepth={session.mirrorObservationDepth} onSelect={(id) => { selectArtifact(id); setSection("index"); }} />}
+          {section === "sectors" && <SectorMap discoveredCount={discoveredCount} revealN07={postJourney || session.event13Discovered} voidMeasured={session.voidProbeCount > 0} onSelect={(id) => { selectArtifact(id); setSection("index"); }} />}
+          {section === "system" && <SystemPanel discoveredCount={discoveredCount} postJourney={postJourney} seed={session.seed} affinity={session.affinity} confidence={session.observerConfidence} />}
         </div>
       </div>
     </section>
   );
 }
 
-function ConnectionMap({ discoveredCount, onSelect }: { discoveredCount: number; onSelect: (id: ArtifactId) => void }) {
+function ConnectionMap({ discoveredCount, revealN07, mirrorDepth, onSelect }: { discoveredCount: number; revealN07: boolean; mirrorDepth: number; onSelect: (id: ArtifactId) => void }) {
   return (
     <div className="mx-auto max-w-5xl">
       <p className="text-[8px] tracking-[0.42em] text-white/28">ARCHIVE CORRELATION / LIVE MODEL</p>
@@ -183,24 +189,27 @@ function ConnectionMap({ discoveredCount, onSelect }: { discoveredCount: number;
           {[0, 1, 2, 3, 4].map((index) => <line key={index} x1={mapPositions[index][0]} y1={mapPositions[index][1]} x2={mapPositions[index + 1][0]} y2={mapPositions[index + 1][1]} stroke="rgba(220,228,228,.28)" strokeWidth=".18" opacity={index + 1 < discoveredCount ? 1 : .2} />)}
           <line x1="45" y1="55" x2="91" y2="38" stroke="rgba(220,228,228,.26)" strokeDasharray="1.2 1.8" strokeWidth=".15" opacity={discoveredCount === 6 ? 1 : .12} />
           <line x1="27" y1="35" x2="77" y2="60" stroke="rgba(174,159,151,.18)" strokeDasharray=".8 2.2" strokeWidth=".12" opacity={discoveredCount >= 5 ? 1 : .1} />
+          {revealN07 && <><line x1="77" y1="60" x2="69" y2="91" stroke="rgba(174,159,151,.28)" strokeDasharray=".5 2.6" strokeWidth=".12" /><line x1="69" y1="91" x2="45" y2="55" stroke="rgba(174,159,151,.12)" strokeWidth=".1" /></>}
         </svg>
         {archiveArtifacts.map((artifact, index) => {
           const discovered = index < discoveredCount;
           return <button key={artifact.id} disabled={!discovered} onClick={() => onSelect(artifact.id)} type="button" className={`absolute -translate-x-1/2 -translate-y-1/2 text-left ${discovered ? "group" : "opacity-20"}`} style={{ left: `${mapPositions[index][0]}%`, top: `${mapPositions[index][1]}%` }}><span className="block h-3 w-3 border border-white/40 bg-black transition-transform group-hover:rotate-45" /><span className="mt-2 block whitespace-nowrap text-[8px] tracking-[0.24em] text-white/62">{artifact.id}</span><span className="hidden whitespace-nowrap text-[7px] tracking-[0.18em] text-white/28 sm:block">{discovered ? artifact.title : "UNRESOLVED"}</span></button>;
         })}
         {discoveredCount === 6 && <p className="absolute bottom-[8%] left-[58%] text-[7px] tracking-[0.25em] text-white/32">003 ↕ 006 / CORRELATION UNRESOLVED</p>}
+        {mirrorDepth > .45 && <p className="absolute left-[25%] top-[43%] text-[7px] tracking-[0.22em] text-white/16">002 / DELAYED ENTRY</p>}
+        {revealN07 && <div className="absolute bottom-[2%] left-[69%] -translate-x-1/2 text-center"><span className="mx-auto block h-3 w-3 rotate-45 border border-[#aa9a91]/45" /><p className="mt-2 text-[8px] tracking-[0.3em] text-[#b6a79e]/58">N-07</p><p className="text-[6px] tracking-[0.22em] text-white/24">LOCATION NONLOCAL</p></div>}
       </div>
     </div>
   );
 }
 
-function SectorMap({ discoveredCount, onSelect }: { discoveredCount: number; onSelect: (id: ArtifactId) => void }) {
+function SectorMap({ discoveredCount, revealN07, voidMeasured, onSelect }: { discoveredCount: number; revealN07: boolean; voidMeasured: boolean; onSelect: (id: ArtifactId) => void }) {
   return (
     <div className="mx-auto max-w-5xl">
       <p className="text-[8px] tracking-[0.42em] text-white/28">SPATIAL INDEX / NON-EUCLIDEAN PROJECTION</p>
       <h3 className="mt-4 text-2xl tracking-[0.28em] sm:text-4xl">SECTOR MAP</h3>
       <div className="relative mt-9 min-h-[25rem] overflow-hidden border-y border-white/10 py-8">
-        <div className="absolute left-[9%] right-[9%] top-1/2 h-px bg-white/15" />
+        <div className={`absolute left-[9%] top-1/2 h-px bg-white/15 ${voidMeasured ? "w-[49%]" : "right-[9%]"}`} />
         <div className="absolute left-[70%] top-[18%] h-[65%] w-px rotate-[14deg] bg-white/10" />
         <div className="grid h-full grid-cols-2 gap-x-14 gap-y-6 sm:grid-cols-3">
           {archiveArtifacts.map((artifact, index) => {
@@ -209,16 +218,18 @@ function SectorMap({ discoveredCount, onSelect }: { discoveredCount: number; onS
             return <button key={artifact.id} disabled={!discovered} onClick={() => onSelect(artifact.id)} type="button" className={`relative min-h-28 border-l pl-4 text-left transition-colors ${corrupted ? "translate-x-3 border-[#aa9a91]/40 sm:-translate-y-3" : "border-white/18"} ${discovered ? "hover:border-white/55" : "opacity-20"}`}><span className="text-[8px] tracking-[0.3em] text-white/30">SECTOR {archiveData[artifact.id].sector}</span><span className="mt-3 block text-[11px] tracking-[0.24em] text-white/70">{discovered ? artifact.title : "INACCESSIBLE"}</span><span className="mt-4 block h-px w-12 bg-white/18" /><span className="mt-2 block text-[7px] tracking-[0.2em] text-white/25">DEPTH {String(index + 1).padStart(2, "0")} / {corrupted ? "COORDINATES CONFLICT" : "MAP RETURN NOMINAL"}</span></button>;
           })}
         </div>
-        {discoveredCount >= 5 && <div className="absolute bottom-4 right-[8%] border-l border-[#aa9a91]/30 pl-3 text-[7px] tracking-[0.25em] text-[#b4a49a]/45">SECTOR 07<br />ADDRESS IMPOSSIBLE</div>}
+        {discoveredCount >= 5 && <div className="absolute bottom-4 right-[8%] border-l border-[#aa9a91]/30 pl-3 text-[7px] tracking-[0.25em] text-[#b4a49a]/45">{revealN07 ? "N-07" : "SECTOR 07"}<br />{revealN07 ? "ACCESS ROUTE UNKNOWN" : "ADDRESS IMPOSSIBLE"}</div>}
+        {revealN07 && <div className="absolute bottom-[22%] left-[48%] h-16 w-24 -skew-x-12 border-l border-t border-[#aa9a91]/20"><p className="translate-x-3 translate-y-3 text-[6px] tracking-[.25em] text-white/20">IMPOSSIBLE RETURN<br />R-06 → N-07 → T-03</p></div>}
       </div>
     </div>
   );
 }
 
-function SystemPanel({ discoveredCount, postJourney }: { discoveredCount: number; postJourney: boolean }) {
+function SystemPanel({ discoveredCount, postJourney, seed, affinity, confidence }: { discoveredCount: number; postJourney: boolean; seed: string; affinity: string; confidence: number }) {
   const rows = [
     ["ARCHIVE STATUS", `${discoveredCount} ANOMALIES CONTAINED`], ["ACTIVE SECTORS", String(discoveredCount).padStart(2, "0")],
-    ["OBSERVER STATUS", postJourney ? "TRACKED / 07" : "PROVISIONAL"], ["SESSION", "LOCAL"],
+    ["OBSERVER STATUS", postJourney ? "TRACKED / 07" : `PATTERN ${Math.round(confidence * 100)}%`], ["SESSION", `LOCAL / ${seed}`],
+    ["OBSERVER AFFINITY", affinity.toUpperCase()],
     ["RENDER STATUS", "NOMINAL"], ["AUDIO BUS", "STANDBY / NO ASSET LINK"],
   ];
   return <div className="mx-auto max-w-3xl"><p className="text-[8px] tracking-[0.42em] text-white/28">ARCHIVE OPERATING LAYER</p><h3 className="mt-4 text-2xl tracking-[0.28em] sm:text-4xl">SYSTEM</h3><div className="mt-10 border-y border-white/10">{rows.map(([label, value]) => <div key={label} className="grid min-h-16 grid-cols-[1fr_1.25fr] items-center border-b border-white/7 text-[8px] tracking-[0.24em]"><span className="text-white/29">{label}</span><span className="text-white/68">{value}</span></div>)}</div><p className="mt-7 text-[8px] leading-5 tracking-[0.22em] text-white/26">SOUND REMAINS DISABLED UNTIL A USER-INITIATED ASSET BUS IS AVAILABLE. NO AUDIO AUTOPLAY IS PERMITTED.</p></div>;

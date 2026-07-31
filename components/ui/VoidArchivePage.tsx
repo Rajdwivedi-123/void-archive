@@ -17,8 +17,24 @@ import { InspectMode } from "./InspectMode";
 import { useArchiveDiscovery } from "@/hooks/useArchiveDiscovery";
 import { archiveArtifacts } from "@/artifacts/archiveData";
 import type { ArtifactId, InspectionControl } from "@/artifacts/inspection";
+import { RealityProvider, useReality, useRealitySnapshot } from "@/reality/RealityProvider";
+import { RealityEffects } from "./RealityEffects";
+
+function stageArtifact(stage: string): ArtifactId | null {
+  if (stage.startsWith("object-two")) return "002";
+  if (stage.startsWith("object-three")) return "003";
+  if (stage.startsWith("object-four")) return "004";
+  if (stage.startsWith("object-five")) return "005";
+  if (stage.startsWith("object-six")) return "006";
+  if (["observation", "approach", "activation", "inspection"].includes(stage)) return "001";
+  return null;
+}
 
 export function VoidArchivePage() {
+  return <RealityProvider><VoidArchiveExperience /></RealityProvider>;
+}
+
+function VoidArchiveExperience() {
   const [isLoading, setIsLoading] = useState(true);
   const [showInfo, setShowInfo] = useState(false);
   const [introComplete, setIntroComplete] = useState(false);
@@ -28,14 +44,19 @@ export function VoidArchivePage() {
   const [inspectionPrimary, setInspectionPrimary] = useState(0.5);
   const [scannerActive, setScannerActive] = useState(false);
   const [archiveUnlocked, setArchiveUnlocked] = useState(false);
+  const [freezeActive, setFreezeActive] = useState(false);
   const pendingInspectionRef = useRef<number | null>(null);
-  const inspectionRef = useRef<InspectionControl>({ active: false, artifactId: null, primary: 0.5, pointerX: 0, pointerY: 0, scanner: false });
+  const freezeTimerRef = useRef<number | null>(null);
+  const inspectionRef = useRef<InspectionControl>({ active: false, artifactId: null, primary: 0.5, pointerX: 0, pointerY: 0, scanner: false, observerConfidence: 0, sessionBias: 0, freezeActive: false });
+  const reality = useReality();
+  const realitySession = useRealitySnapshot();
   const reducedMotion = useReducedMotion();
   const { tier, hasFinePointer } = useDeviceProfile();
   const { progressRef, hasEnteredArtifact, journeyStage } = useArchiveScroll();
   const discoveredCount = useArchiveDiscovery(journeyStage);
   const inspectedArtifact = archiveArtifacts.find((artifact) => artifact.id === inspectedId) ?? null;
-  const postJourney = archiveUnlocked || journeyStage === "session-complete";
+  const postJourney = archiveUnlocked || realitySession.archiveUnlocked || journeyStage === "session-complete";
+  const realityArtifact = inspectedId ?? (archiveOpen ? selectedId : stageArtifact(journeyStage));
 
   useLenisScroll(reducedMotion || archiveOpen || Boolean(inspectedArtifact));
 
@@ -63,13 +84,37 @@ export function VoidArchivePage() {
     inspectionRef.current.artifactId = inspectedId;
     inspectionRef.current.primary = inspectionPrimary;
     inspectionRef.current.scanner = scannerActive;
-  }, [inspectedId, inspectionPrimary, scannerActive]);
+    inspectionRef.current.observerConfidence = realitySession.observerConfidence;
+    inspectionRef.current.sessionBias = ["gravity", "optical", "temporal", "adaptive", "spatial", "mnemonic"].indexOf(realitySession.affinity) / 5;
+    inspectionRef.current.freezeActive = freezeActive;
+  }, [freezeActive, inspectedId, inspectionPrimary, realitySession.affinity, realitySession.observerConfidence, scannerActive]);
+
+  useEffect(() => {
+    reality.setContext(realityArtifact, archiveOpen ? "archive" : inspectedId ? "inspect" : "journey", reducedMotion, tier);
+  }, [archiveOpen, inspectedId, reality, realityArtifact, reducedMotion, tier]);
+
+  useEffect(() => {
+    if (!inspectedId) return;
+    reality.beginInspection(inspectedId);
+    return () => reality.endInspection(inspectedId);
+  }, [inspectedId, reality]);
 
   useEffect(() => {
     if (journeyStage !== "session-complete") return;
-    const frame = window.requestAnimationFrame(() => setArchiveUnlocked(true));
+    const frame = window.requestAnimationFrame(() => { setArchiveUnlocked(true); reality.unlockArchive(); });
     return () => window.cancelAnimationFrame(frame);
-  }, [journeyStage]);
+  }, [journeyStage, reality]);
+
+  useEffect(() => {
+    if (journeyStage !== "memory-recovery-passage" || realitySession.realityFreezeSeen) return;
+    const startFrame = window.requestAnimationFrame(() => { setFreezeActive(true); reality.setFreezeActive(true); });
+    freezeTimerRef.current = window.setTimeout(() => {
+      setFreezeActive(false);
+      reality.setFreezeActive(false);
+      reality.markFreezeSeen();
+    }, reducedMotion ? 650 : 1450);
+    return () => window.cancelAnimationFrame(startFrame);
+  }, [journeyStage, reality, realitySession.realityFreezeSeen, reducedMotion]);
 
   useEffect(() => {
     if (!archiveOpen && !inspectedArtifact) return;
@@ -100,6 +145,7 @@ export function VoidArchivePage() {
 
   useEffect(() => () => {
     if (pendingInspectionRef.current) window.clearTimeout(pendingInspectionRef.current);
+    if (freezeTimerRef.current) window.clearTimeout(freezeTimerRef.current);
   }, []);
 
   const handleIntroComplete = useCallback(() => setIntroComplete(true), []);
@@ -111,6 +157,7 @@ export function VoidArchivePage() {
     setInspectedId(null);
     setSelectedId(id);
     setScannerActive(false);
+    reality.revisit(id);
     const seek = () => {
       const range = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
       const target = id === "001" ? 0.1 : artifact.camera.inspectionAt;
@@ -125,12 +172,23 @@ export function VoidArchivePage() {
         setInspectedId(id);
       }, reducedMotion ? 80 : 1450);
     }
-  }, [reducedMotion]);
+  }, [reality, reducedMotion]);
 
   const handleInspectionPointer = useCallback((x: number, y: number) => {
     inspectionRef.current.pointerX = x;
     inspectionRef.current.pointerY = y;
   }, []);
+
+  const handlePrimary = useCallback((value: number) => {
+    if (!inspectedId) return;
+    setInspectionPrimary(value);
+    reality.recordControl(inspectedId, value);
+  }, [inspectedId, reality]);
+
+  const handleScanner = useCallback((active: boolean) => {
+    setScannerActive(active);
+    if (active && inspectedId === "005") reality.recordVoidProbe();
+  }, [inspectedId, reality]);
 
   const interactionHidden = archiveOpen || Boolean(inspectedArtifact);
   const gravityRecordVisible = !interactionHidden && showInfo && (journeyStage === "observation" || journeyStage === "approach");
@@ -154,7 +212,8 @@ export function VoidArchivePage() {
       <ArchiveEnding stage={journeyStage} reducedMotion={reducedMotion} onOpenArchive={() => setArchiveOpen(true)} />
       <ArchiveCommand active={introComplete && !interactionHidden && journeyStage !== "session-complete"} discoveredCount={discoveredCount} onOpen={() => setArchiveOpen(true)} />
       <ArchiveMode open={archiveOpen} discoveredCount={discoveredCount} selectedId={selectedId} postJourney={postJourney} reducedMotion={reducedMotion} onClose={() => setArchiveOpen(false)} onSelect={setSelectedId} onRevisit={(id) => seekArtifact(id, false)} onInspect={(id) => seekArtifact(id, true)} />
-      <InspectMode artifact={inspectedArtifact} primary={inspectionPrimary} scanner={scannerActive} reducedMotion={reducedMotion} onPrimary={setInspectionPrimary} onScanner={setScannerActive} onPointer={handleInspectionPointer} onExit={() => setInspectedId(null)} />
+      <InspectMode artifact={inspectedArtifact} primary={inspectionPrimary} scanner={scannerActive} reducedMotion={reducedMotion} onPrimary={handlePrimary} onScanner={handleScanner} onPointer={handleInspectionPointer} onExit={() => setInspectedId(null)} />
+      <RealityEffects artifact={interactionHidden ? realityArtifact : stageArtifact(journeyStage)} primary={inspectionPrimary} freezeActive={freezeActive} reducedMotion={reducedMotion} />
       <LoaderOverlay isVisible={isLoading} reducedMotion={reducedMotion} />
       <ArchiveCanvas isSceneReady={!isLoading} reducedMotion={reducedMotion} scrollProgress={progressRef} inspection={inspectionRef} tier={tier} hasFinePointer={hasFinePointer} onIntroComplete={handleIntroComplete} />
     </main>

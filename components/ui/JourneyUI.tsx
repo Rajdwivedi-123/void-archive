@@ -30,6 +30,7 @@ export function JourneyUI({ stage }: JourneyUIProps) {
   const transitLabel = fifthTransit ? "MEMORY RECOVERY ACTIVE" : fourthTransit ? "GEOMETRIC ISOLATION ACTIVE" : thirdTransit ? "BIO-ISOLATION LINK ACTIVE" : secondTransit ? "CHRONOLOGY LINK ACTIVE" : "ARCHIVE LINK ACTIVE";
   return (
     <div className="pointer-events-none fixed inset-0 z-30 flex items-center justify-end p-5 sm:p-8 lg:p-12">
+      {stage === "geometric-isolation-passage" && <div className="non-euclidean-ribs absolute inset-y-[12%] left-[18%] right-[18%] opacity-70"><p className="absolute bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[7px] tracking-[.34em] text-white/30">VISIBLE LENGTH / 18 M&nbsp;&nbsp;&nbsp; MEASURED RETURN / 43 M</p></div>}
       <div className={`absolute right-5 top-1/2 -translate-y-1/2 border-r border-white/18 py-3 pr-4 text-right transition-all duration-700 sm:right-8 lg:right-12 ${showTransit ? "translate-x-0 opacity-100" : "translate-x-3 opacity-0"}`}>
         <p className="text-[8px] tracking-[0.42em] text-white/35">TRANSIT</p>
         <p className="mt-2 text-[10px] tracking-[0.34em] text-white/72">{transitCode}</p>
@@ -37,7 +38,7 @@ export function JourneyUI({ stage }: JourneyUIProps) {
         {stage === "deep-archive" && <p className="mt-4 text-[8px] tracking-[0.3em] text-[#a99d94]/65">INCIDENT LOG / REDACTED</p>}
         {stage === "measurement-passage" && <p className="mt-4 text-[8px] tracking-[0.3em] text-[#9eafb2]/65">TIMEBASE / UNVERIFIED</p>}
         {stage === "bio-isolation-passage" && <p className="mt-4 text-[8px] tracking-[0.3em] text-[#a9aaa2]/65">COGNITIVE SCREEN / ARMED</p>}
-        {stage === "geometric-isolation-passage" && <p className="mt-4 text-[8px] tracking-[0.3em] text-[#a9aaa2]/65">SPATIAL RETURN / NULL</p>}
+        {stage === "geometric-isolation-passage" && <p className="mt-4 text-[8px] tracking-[0.3em] text-[#a9aaa2]/65">SPATIAL RETURN / EXTENDING</p>}
         {stage === "memory-recovery-passage" && <p className="mt-4 text-[8px] tracking-[0.3em] text-[#c2c3ba]/65">SPATIAL CONTINUITY / RESTORED</p>}
       </div>
       {[

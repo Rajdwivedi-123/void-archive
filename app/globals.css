@@ -5,6 +5,44 @@
   --foreground: #111111;
 }
 
+/* Phase 9: bounded interface physics. These effects are opt-in and never filter the full page. */
+[data-reality-artifact="001"] .reality-reactive-panel {
+  --gravity-pack: calc(var(--reality-intensity, .5) * 1px);
+  letter-spacing: calc(.2em - var(--gravity-pack));
+}
+.reality-gravity-field { transform: scale(calc(1 - var(--reality-intensity, .5) * .012)); transform-origin: 56% 48%; }
+.reality-gravity-dot { position:absolute; width:2px; height:2px; border-radius:50%; background:rgba(255,255,255,.5); transform:translate(calc((56vw - 100%) * var(--reality-intensity, .5) * .08),calc((48vh - 100%) * var(--reality-intensity, .5) * .08)); transition:transform 500ms cubic-bezier(.2,.7,.2,1); }
+.reality-observer-echo { opacity:.42; mix-blend-mode:screen; transition:opacity 400ms; }
+.reality-observer-echo span { display:block; width:14px; height:14px; border:1px solid rgba(219,226,224,.48); border-left-color:transparent; transform:translate(-50%,-50%) rotate(45deg); }
+.reality-observer-echo p { margin:9px 0 0 12px; color:rgba(226,232,230,.3); font-size:6px; line-height:1.8; letter-spacing:.28em; white-space:nowrap; }
+.reality-temporal-cursor { opacity:.34; }
+.reality-temporal-cursor span { display:block; width:9px; height:9px; border-top:1px solid rgba(222,228,226,.7); border-right:1px solid rgba(222,228,226,.7); transform:translate(-50%,-50%) rotate(45deg); }
+.reality-temporal-cursor p { margin:7px 0 0 9px; color:rgba(222,228,226,.38); font-size:6px; letter-spacing:.24em; white-space:nowrap; }
+.reality-temporal-cursor.is-future { opacity:.56; }
+.reality-temporal-cursor.is-past { opacity:.22; }
+.reality-void-occlusion { background:radial-gradient(ellipse at center,rgba(0,0,0,.92) 0 17%,rgba(0,0,0,.56) 35%,transparent 72%); }
+.reality-void-occlusion::before,.reality-void-occlusion::after { content:""; position:absolute; background:rgba(202,210,207,.14); }
+.reality-void-occlusion::before { left:0; top:43%; width:32%; height:1px; }
+.reality-void-occlusion::after { right:0; top:43%; width:23%; height:1px; }
+.reality-void-occlusion span { color:rgba(190,179,172,.36); font-size:6px; letter-spacing:.3em; }
+.reality-void-damaged { mask-image:linear-gradient(90deg,#000 0 28%,transparent 31% 42%,#000 48%); }
+.reality-freeze { background:rgba(0,0,0,.12); }
+.reality-freeze div { border-block:1px solid rgba(255,255,255,.1); padding:18px 28px; text-align:center; background:rgba(0,0,0,.5); }
+.reality-freeze p,.reality-freeze span { display:block; color:rgba(255,255,255,.28); font-size:7px; letter-spacing:.34em; }
+.reality-freeze strong { display:block; margin:10px 0; color:rgba(255,255,255,.78); font-size:9px; font-weight:400; letter-spacing:.3em; }
+[data-reality-freeze] canvas { animation-play-state:paused; }
+.non-euclidean-ribs { background:repeating-linear-gradient(90deg,transparent 0 8%,rgba(210,216,212,.05) 8.15%,transparent 8.3% 16%); }
+.memory-trace-grid { background:linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px); background-size:16.66% 100%; }
+
+@media (max-width: 699px) {
+  .reality-observer-echo,.reality-temporal-cursor,.reality-gravity-dot { display:none; }
+  .reality-void-occlusion { left:23%; top:22%; width:66%; height:48%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reality-gravity-field,.reality-gravity-dot,.reality-observer-echo,.reality-temporal-cursor { transition:none !important; }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

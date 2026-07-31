@@ -7,6 +7,7 @@ import type { DeviceTier } from "@/hooks/useDeviceProfile";
 import type { MutableRefObject } from "react";
 import { liquidMirrorArtifact, memoryCrystalArtifact, neuralRelicArtifact, temporalRingArtifact, voidArtifact } from "@/artifacts/registry";
 import type { InspectionControlRef } from "@/artifacts/inspection";
+import { useReality } from "@/reality/RealityProvider";
 
 type JourneyCameraProps = {
   introComplete: boolean;
@@ -108,17 +109,19 @@ function interpolateFrame(frames: CameraKeyframe[], progress: number, position: 
 }
 
 export function JourneyCamera({ introComplete, reducedMotion, scrollProgress, inspection, tier }: JourneyCameraProps) {
+  const reality = useReality();
   const { pointer } = useThree();
   const smoothedProgressRef = useRef(0);
   const vectorsRef = useRef({
     desiredPosition: new THREE.Vector3(),
     desiredTarget: new THREE.Vector3(),
     smoothedTarget: new THREE.Vector3(0.18, 2.4, -0.16),
+    projectedTarget: new THREE.Vector3(),
   });
 
   useFrame((state, delta) => {
     if (!introComplete) return;
-    const { desiredPosition, desiredTarget, smoothedTarget } = vectorsRef.current;
+    const { desiredPosition, desiredTarget, smoothedTarget, projectedTarget } = vectorsRef.current;
     const damping = reducedMotion ? 12 : tier === "mobile" ? 7.5 : 5.2;
     smoothedProgressRef.current = THREE.MathUtils.damp(smoothedProgressRef.current, scrollProgress.current, damping, delta);
     const frames = tier === "mobile" ? mobileFrames : desktopFrames;
@@ -140,6 +143,10 @@ export function JourneyCamera({ introComplete, reducedMotion, scrollProgress, in
     state.camera.position.lerp(desiredPosition, positionAlpha);
     smoothedTarget.lerp(desiredTarget, positionAlpha);
     state.camera.lookAt(smoothedTarget);
+    if (inspectState.active) {
+      projectedTarget.copy(smoothedTarget).project(state.camera);
+      reality.setProjection(projectedTarget.x * .5 + .5, projectedTarget.y * -.5 + .5);
+    }
     if (!reducedMotion && composition.roll !== 0) state.camera.rotateZ(composition.roll);
     if (state.camera instanceof THREE.PerspectiveCamera) {
       const inspectFov = inspectState.active ? composition.fov - (tier === "mobile" ? 0.5 : 1.1) : composition.fov;

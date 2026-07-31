@@ -184,16 +184,20 @@ export function MemoryCrystal({ tier, reducedMotion, hasFinePointer, scrollProgr
       if (!material) return;
       const staged = THREE.MathUtils.clamp(activation * 1.8 - index * 0.12, 0, 1);
       const stratumFocus = inspecting ? Math.max(0, 1 - Math.abs(memoryLayers[index].depth - inspection.current.primary) * 3.2) : 1;
+      const sessionBias = inspection.current.sessionBias;
+      const missingSpatialLayer = sessionBias > .72 && sessionBias < .9 && index === Math.min(2, layerCount - 1);
       material.uniforms.uTime.value = timeRef.current + index * 1.7;
       material.uniforms.uActivation.value = staged;
       material.uniforms.uRecall.value = reducedMotion ? lifecycle.inspection * 0.45 : recall;
-      material.uniforms.uOpacity.value = inspecting ? 0.18 + stratumFocus * 0.72 : 0.48 + inspectionAmount * 0.34;
+      material.uniforms.uOpacity.value = missingSpatialLayer ? .025 : inspecting ? 0.18 + stratumFocus * 0.72 : 0.48 + inspectionAmount * 0.34;
       material.uniforms.uPointer.value.copy(pointerRef.current).multiplyScalar(quality.pointerStrength);
       const layer = layerRefs.current[index];
       if (layer) {
         const contradiction = index % 2 ? -1 : 1;
         layer.position.x = memoryLayers[index].position[0] + pointerRef.current.x * memoryLayers[index].depth * 0.055 * contradiction;
-        layer.position.z = memoryLayers[index].position[2] + inspectionAmount * (index - layerCount / 2) * 0.018 + (inspecting ? (memoryLayers[index].depth - inspection.current.primary) * 0.32 : 0);
+        const temporalMisorder = sessionBias > .32 && sessionBias < .54 ? (index % 2 ? -.08 : .08) : 0;
+        layer.position.z = memoryLayers[index].position[2] + inspectionAmount * (index - layerCount / 2) * 0.018 + temporalMisorder + (inspecting ? (memoryLayers[index].depth - inspection.current.primary) * 0.32 : 0);
+        layer.scale.x = memoryLayers[index].scale[0] * (sessionBias < .12 ? .92 : 1);
         layer.rotation.y = memoryLayers[index].rotation[1] + pointerRef.current.x * 0.025 * contradiction;
       }
     });

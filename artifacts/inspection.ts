@@ -10,6 +10,9 @@ export type InspectionControl = {
   pointerX: number;
   pointerY: number;
   scanner: boolean;
+  observerConfidence: number;
+  sessionBias: number;
+  freezeActive: boolean;
 };
 
 export type InspectionControlRef = MutableRefObject<InspectionControl>;

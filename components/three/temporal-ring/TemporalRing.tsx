@@ -103,7 +103,7 @@ export function TemporalRing({ tier, reducedMotion, hasFinePointer, scrollProgre
     const collapse = smoothRange(progress, 0.693, 0.704);
     const targetTimeScale = reducedMotion || inspecting ? 0 : THREE.MathUtils.lerp(1, 0.08, slow);
     timeScaleRef.current = THREE.MathUtils.damp(timeScaleRef.current, targetTimeScale, 5, delta);
-    timeRef.current += delta * timeScaleRef.current;
+    if (!inspection.current.freezeActive) timeRef.current += delta * timeScaleRef.current;
 
     const pointerEnabled = hasFinePointer && tier === "desktop" && !reducedMotion;
     pointerRef.current.x = THREE.MathUtils.damp(pointerRef.current.x, inspecting ? inspection.current.pointerX : pointerEnabled ? pointer.x : 0, 4.5, delta);

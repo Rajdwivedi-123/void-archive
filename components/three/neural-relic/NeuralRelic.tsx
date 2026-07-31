@@ -114,9 +114,10 @@ export function NeuralRelic({ tier, reducedMotion, hasFinePointer, scrollProgres
     const inspecting = inspection.current.active && inspection.current.artifactId === "004";
     const activation = Math.max(lifecycle.activation, inspecting ? 1 : 0);
     const motion = reducedMotion ? 0 : 1;
-    timeRef.current += delta * motion;
+    if (!inspection.current.freezeActive) timeRef.current += delta * motion;
     const observing = activation > 0.45;
-    adaptationRef.current = THREE.MathUtils.damp(adaptationRef.current, observing ? 1 : 0, observing ? 0.32 : 2.5, delta);
+    const learnedResponse = Math.max(observing ? 1 : 0, inspection.current.observerConfidence * .88);
+    adaptationRef.current = THREE.MathUtils.damp(adaptationRef.current, learnedResponse, observing ? 0.32 : 2.5, delta);
     const adaptation = adaptationRef.current;
     const pointerEnabled = tier === "desktop" && hasFinePointer && !reducedMotion;
     pointerRef.current.x = THREE.MathUtils.damp(pointerRef.current.x, inspecting ? inspection.current.pointerX : pointerEnabled ? pointer.x : 0, 3.2, delta);
@@ -156,7 +157,7 @@ export function NeuralRelic({ tier, reducedMotion, hasFinePointer, scrollProgres
       const signal = signalRefs.current[index];
       if (!signal) continue;
       const route = signalRoutes[index];
-      const speed = THREE.MathUtils.lerp(0.055, 0.18, adaptation);
+      const speed = THREE.MathUtils.lerp(0.055, 0.18 + inspection.current.observerConfidence * .045, adaptation);
       const position = reducedMotion ? 0.62 : (timeRef.current * speed + index * 0.21) % 1;
       branchCurves[route].getPointAt(position, signalVectorRef.current);
       signal.position.copy(signalVectorRef.current);

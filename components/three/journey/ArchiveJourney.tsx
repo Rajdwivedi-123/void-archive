@@ -43,7 +43,7 @@ export function ArchiveJourney({ tier, reducedMotion, hasFinePointer, scrollProg
       <BioIsolationPassage tier={tier} />
       <NeuralRelicChamber tier={tier} reducedMotion={reducedMotion} scrollProgress={scrollProgress} />
       <NeuralRelic tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} inspection={inspection} />
-      <GeometricIsolationPassage tier={tier} />
+      <GeometricIsolationPassage tier={tier} scrollProgress={scrollProgress} />
       <VoidChamber tier={tier} reducedMotion={reducedMotion} scrollProgress={scrollProgress} />
       <VoidArtifact tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} inspection={inspection} />
       <MemoryRecoveryPassage tier={tier} />
