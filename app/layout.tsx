@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -13,9 +13,34 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Void Archive",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  title: "VOID ARCHIVE — Impossible Collection",
   description:
-    "An interactive archive of impossible objects. Object 001: Gravity Core.",
+    "Enter a cinematic WebGL archive of six impossible objects and the traces they leave behind.",
+  applicationName: "VOID ARCHIVE",
+  keywords: ["interactive art", "WebGL", "digital archive", "experimental experience"],
+  creator: "VOID ARCHIVE",
+  category: "art",
+  openGraph: {
+    title: "VOID ARCHIVE — Impossible Collection",
+    description:
+      "Enter a cinematic WebGL archive of six impossible objects and the traces they leave behind.",
+    siteName: "VOID ARCHIVE",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "VOID ARCHIVE — Impossible Collection",
+    description:
+      "Enter a cinematic WebGL archive of six impossible objects and the traces they leave behind.",
+  },
+  robots: { index: true, follow: true },
+  formatDetection: { telephone: false },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#030303",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({

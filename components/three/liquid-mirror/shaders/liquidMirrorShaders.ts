@@ -9,7 +9,6 @@ export const liquidMirrorVertexShader = /* glsl */ `
   varying vec2 vUv;
   varying float vViscousFold;
   varying float vEdgeDrift;
-  varying vec3 vViewPosition;
 
   void main() {
     vUv = uv;
@@ -30,7 +29,6 @@ export const liquidMirrorVertexShader = /* glsl */ `
     transformed.y *= 0.88 + uReveal * 0.12;
 
     vec4 viewPosition = modelViewMatrix * vec4(transformed, 1.0);
-    vViewPosition = viewPosition.xyz;
     vViscousFold = viscousFold;
     vEdgeDrift = edgeDrift;
     gl_Position = projectionMatrix * viewPosition;
@@ -46,13 +44,11 @@ export const liquidMirrorFragmentShader = /* glsl */ `
   uniform float uInspection;
   uniform float uEcho;
   uniform float uLayers;
-  uniform vec2 uPointer;
   uniform vec2 uReflectionOffset;
 
   varying vec2 vUv;
   varying float vViscousFold;
   varying float vEdgeDrift;
-  varying vec3 vViewPosition;
 
   float band(float value, float center, float width) {
     return 1.0 - smoothstep(width, width + 0.012, abs(value - center));
@@ -90,13 +86,13 @@ export const liquidMirrorFragmentShader = /* glsl */ `
 
     vec3 voidMetal = vec3(0.004, 0.007, 0.008);
     vec3 graphite = vec3(0.065, 0.074, 0.077);
-    vec3 silver = vec3(0.58, 0.65, 0.67);
+    vec3 silver = vec3(0.48, 0.54, 0.56);
     float broadResponse = 0.18 + pow(max(0.0, 1.0 - abs(p.x + vViscousFold * 0.06)), 3.2) * 0.28;
     float liquidSheen = (sin(p.x * 3.8 + p.y * 1.15 + vViscousFold * 0.9) * 0.5 + 0.5) * 0.11;
     liquidSheen += pow(max(0.0, 1.0 - abs(p.x * 0.72 + p.y * 0.18)), 7.0) * 0.13;
     float reflectedLight = architecture * 0.36 + secondary * 0.2 + tertiary * 0.14 + floorReturn * 0.08;
     reflectedLight *= uReflection;
-    reflectedLight += revealSweep * 0.58 * uActivation;
+    reflectedLight += revealSweep * 0.46 * uActivation;
     reflectedLight += impossibleSeam * (0.3 + uInspection * 0.22);
 
     vec3 color = mix(voidMetal, graphite, broadResponse + abs(vViscousFold) * 0.055);

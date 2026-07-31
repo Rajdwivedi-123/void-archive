@@ -3,8 +3,10 @@
 import Lenis from "lenis";
 import { useEffect } from "react";
 
-export function useLenisScroll() {
+export function useLenisScroll(reducedMotion: boolean) {
   useEffect(() => {
+    if (reducedMotion) return;
+
     const lenis = new Lenis({
       duration: 1.6,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
@@ -23,5 +25,5 @@ export function useLenisScroll() {
       window.cancelAnimationFrame(frame);
       lenis.destroy();
     };
-  }, []);
+  }, [reducedMotion]);
 }

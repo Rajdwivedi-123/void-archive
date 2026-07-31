@@ -84,7 +84,7 @@ export function ArchiveCorridor({ tier }: ArchiveCorridorProps) {
       </instancedMesh>
       <instancedMesh ref={seamRef} args={[undefined, undefined, ribCount]}>
         <boxGeometry args={[2.5, 0.018, 0.028]} />
-        <meshBasicMaterial color="#727d80" transparent opacity={0.2} toneMapped={false} />
+        <meshBasicMaterial color="#7b878a" transparent opacity={0.24} toneMapped={false} />
       </instancedMesh>
 
       {doors.map((door, index) => (
@@ -107,9 +107,9 @@ export function ArchiveCorridor({ tier }: ArchiveCorridorProps) {
         <bufferGeometry><bufferAttribute attach="attributes-position" args={[dust, 3]} /></bufferGeometry>
         <pointsMaterial color="#7d8587" size={0.018} transparent opacity={0.1} depthWrite={false} sizeAttenuation />
       </points>
-      <pointLight color="#8c999c" intensity={0.65} distance={13} decay={2.35} position={[4.2, 5.6, -42]} />
-      <pointLight color="#6f7b7e" intensity={0.5} distance={12} decay={2.4} position={[9.6, 4.8, -67]} />
-      {tier !== "mobile" && <pointLight color="#958c84" intensity={0.42} distance={11} decay={2.45} position={[4.6, 3.8, -86]} />}
+      <pointLight color="#8c999c" intensity={0.72} distance={13} decay={2.35} position={[4.2, 5.6, -42]} />
+      <pointLight color="#6f7b7e" intensity={0.56} distance={12} decay={2.4} position={[9.6, 4.8, -67]} />
+      {tier !== "mobile" && <pointLight color="#958c84" intensity={0.48} distance={11} decay={2.45} position={[4.6, 3.8, -86]} />}
     </group>
   );
 }

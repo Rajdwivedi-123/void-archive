@@ -21,7 +21,7 @@ export function VoidArchivePage() {
   const { tier, hasFinePointer } = useDeviceProfile();
   const { progressRef, hasEnteredArtifact, journeyStage } = useArchiveScroll();
 
-  useLenisScroll();
+  useLenisScroll(reducedMotion);
 
   useEffect(() => {
     const timer = window.setTimeout(
@@ -51,7 +51,8 @@ export function VoidArchivePage() {
   const memoryRecordVisible = journeyStage === "object-six-activation" || journeyStage === "object-six-inspection";
 
   return (
-    <div className="journey-scroll-space relative overflow-x-hidden bg-[#030303] text-white">
+    <main className="journey-scroll-space relative overflow-x-hidden bg-[#030303] text-white" aria-label="VOID ARCHIVE interactive collection">
+      <h1 className="sr-only">VOID ARCHIVE</h1>
       <ArchiveHUD active={introComplete} stage={journeyStage} />
       <ArtifactRecord artifact={gravityCoreArtifact} isVisible={gravityRecordVisible} reducedMotion={reducedMotion} anomalyActive={hasEnteredArtifact} />
       <ArtifactRecord artifact={liquidMirrorArtifact} isVisible={mirrorRecordVisible} reducedMotion={reducedMotion} anomalyActive={journeyStage === "object-two-inspection"} />
@@ -63,6 +64,6 @@ export function VoidArchivePage() {
       <ArchiveEnding stage={journeyStage} reducedMotion={reducedMotion} />
       <LoaderOverlay isVisible={isLoading} reducedMotion={reducedMotion} />
       <ArchiveCanvas isSceneReady={!isLoading} reducedMotion={reducedMotion} scrollProgress={progressRef} tier={tier} hasFinePointer={hasFinePointer} onIntroComplete={handleIntroComplete} />
-    </div>
+    </main>
   );
 }

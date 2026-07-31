@@ -107,16 +107,3 @@ canvas {
 a {
   text-decoration: none;
 }
-
-@keyframes archive-progress-bar {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
-}
-
-.archive-progress-bar {
-  animation: archive-progress-bar 1.2s ease-in-out infinite;
-}

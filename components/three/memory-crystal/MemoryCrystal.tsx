@@ -80,7 +80,7 @@ function createMemoryMonolithGeometry() {
 }
 
 const monolithGeometry = createMemoryMonolithGeometry();
-const memoryPlaneGeometry = new THREE.PlaneGeometry(2.35, 1.42, 18, 10);
+const memoryPlaneGeometry = new THREE.PlaneGeometry(2.35, 1.42, 12, 7);
 
 const memoryLayers: MemoryLayer[] = [
   { position: [-0.12, -2.3, 0.28], rotation: [0.04, -0.2, -0.03], scale: [0.72, 0.68, 1], depth: 0.12 },

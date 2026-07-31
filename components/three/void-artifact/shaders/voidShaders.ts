@@ -4,11 +4,7 @@ export const voidVertexShader = /* glsl */ `
   uniform float uCollapse;
   uniform vec2 uPointer;
 
-  varying vec2 vUv;
-  varying float vShear;
-
   void main() {
-    vUv = uv;
     vec3 displaced = position;
     float vertical = position.y * 0.72;
     float shear = sin(vertical * 2.7 + uTime * 0.16) * 0.08;
@@ -18,18 +14,12 @@ export const voidVertexShader = /* glsl */ `
     displaced.y += uPointer.y * 0.035 * uActivation;
     displaced.x *= 1.0 + uCollapse * 0.11;
     displaced.y *= 1.0 + uCollapse * 0.055;
-    vShear = shear;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
   }
 `;
 
 export const voidFragmentShader = /* glsl */ `
-  uniform float uActivation;
-  uniform float uCollapse;
   uniform float uOpacity;
-
-  varying vec2 vUv;
-  varying float vShear;
 
   void main() {
     gl_FragColor = vec4(vec3(0.0), uOpacity);

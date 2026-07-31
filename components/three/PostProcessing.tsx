@@ -13,16 +13,16 @@ export function PostProcessing({ tier, reducedMotion }: PostProcessingProps) {
   if (tier === "mobile") {
     return (
       <EffectComposer multisampling={0}>
-        <Vignette eskil={false} offset={0.2} darkness={0.72} />
+        <Vignette eskil={false} offset={0.2} darkness={0.62} />
       </EffectComposer>
     );
   }
 
   return (
-    <EffectComposer multisampling={tier === "desktop" ? 4 : 0}>
-      <Bloom intensity={tier === "desktop" ? 0.19 : 0.11} luminanceThreshold={0.92} luminanceSmoothing={0.12} mipmapBlur />
-      <Vignette eskil={false} offset={0.17} darkness={0.76} />
-      <Noise premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={reducedMotion ? 0.012 : 0.018} />
+    <EffectComposer multisampling={tier === "desktop" ? 2 : 0}>
+      <Bloom intensity={tier === "desktop" ? 0.17 : 0.1} luminanceThreshold={0.94} luminanceSmoothing={0.12} mipmapBlur />
+      <Vignette eskil={false} offset={0.18} darkness={tier === "desktop" ? 0.69 : 0.66} />
+      <Noise premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={reducedMotion ? 0.008 : 0.012} />
     </EffectComposer>
   );
 }

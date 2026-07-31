@@ -76,6 +76,8 @@ export function GravityCore({ active, reducedMotion, scrollProgress, tier, hasFi
 
   useFrame(() => {
     if (!groupRef.current) return;
+    groupRef.current.visible = scrollProgress.current < 0.39;
+    if (!groupRef.current.visible) return;
     const pointerEnabled = active && hasFinePointer && tier === "desktop" && !reducedMotion;
     const pointerX = pointerEnabled ? pointer.x * 0.045 : 0;
     const pointerY = pointerEnabled ? pointer.y * 0.025 : 0;

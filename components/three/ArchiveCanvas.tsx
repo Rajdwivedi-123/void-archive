@@ -5,6 +5,7 @@ import { Experience } from "./Experience";
 import type { DeviceTier } from "@/hooks/useDeviceProfile";
 import type { MutableRefObject } from "react";
 import * as THREE from "three";
+import { WebGLFallback } from "../ui/WebGLFallback";
 
 type ArchiveCanvasProps = {
   isSceneReady: boolean;
@@ -25,29 +26,33 @@ export function ArchiveCanvas({
 }: ArchiveCanvasProps) {
   return (
     <div className="fixed inset-0 z-10 h-[100svh] w-screen overflow-hidden">
-      <Canvas
-        dpr={tier === "mobile" ? [0.8, 1.15] : tier === "tablet" ? [1, 1.4] : [1, 1.7]}
-        shadows={false}
-        camera={{ position: [0, 0.6, 8], fov: 42, near: 0.1, far: 120 }}
-        gl={{
-          antialias: true,
-          alpha: true,
-          powerPreference: "high-performance",
-          outputColorSpace: "srgb",
-          toneMapping: THREE.ACESFilmicToneMapping,
-        }}
-        onCreated={({ gl }) => { gl.toneMappingExposure = 0.92; }}
-        className="h-full w-full"
-      >
-        <Experience
-          isSceneReady={isSceneReady}
-          reducedMotion={reducedMotion}
-          scrollProgress={scrollProgress}
-          tier={tier}
-          hasFinePointer={hasFinePointer}
-          onIntroComplete={onIntroComplete}
-        />
-      </Canvas>
+      <p className="sr-only">A cinematic rendering of six impossible objects in the VOID ARCHIVE.</p>
+      <div aria-hidden="true" className="h-full w-full">
+        <Canvas
+          dpr={tier === "mobile" ? [0.8, 1.15] : tier === "tablet" ? [0.9, 1.3] : [1, 1.5]}
+          shadows={false}
+          camera={{ position: [0, 0.6, 8], fov: 42, near: 0.1, far: 120 }}
+          gl={{
+            antialias: true,
+            alpha: true,
+            powerPreference: "high-performance",
+            outputColorSpace: "srgb",
+            toneMapping: THREE.ACESFilmicToneMapping,
+          }}
+          onCreated={({ gl }) => { gl.toneMappingExposure = 0.92; }}
+          fallback={<WebGLFallback />}
+          className="h-full w-full"
+        >
+          <Experience
+            isSceneReady={isSceneReady}
+            reducedMotion={reducedMotion}
+            scrollProgress={scrollProgress}
+            tier={tier}
+            hasFinePointer={hasFinePointer}
+            onIntroComplete={onIntroComplete}
+          />
+        </Canvas>
+      </div>
     </div>
   );
 }

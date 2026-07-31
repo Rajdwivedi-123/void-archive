@@ -56,7 +56,7 @@ export function VoidChamber({ tier, reducedMotion, scrollProgress }: VoidChamber
       if (!material) return;
       const staged = THREE.MathUtils.clamp(lifecycle.entry * 1.65 - index * 0.08, 0, 1);
       const rhythm = index % 3 === 0 ? 1 : 0.55;
-      material.opacity = lifecycle.visible * staged * (0.035 + lifecycle.activation * 0.1 * rhythm) * (1 - collapse * 0.52);
+      material.opacity = lifecycle.visible * staged * (0.045 + lifecycle.activation * 0.12 * rhythm) * (1 - collapse * 0.52);
     });
     affectedMaterialRefs.current.forEach((material, index) => {
       if (!material) return;
@@ -71,7 +71,7 @@ export function VoidChamber({ tier, reducedMotion, scrollProgress }: VoidChamber
       foregroundRef.current.position.x = THREE.MathUtils.damp(foregroundRef.current.position.x, -6.2 - collapse * 0.28, 6, delta);
     }
     if (grazingLightRef.current) grazingLightRef.current.intensity = lifecycle.visible * (0.12 + lifecycle.activation * 1.08) * (1 - collapse * 0.68);
-    if (edgeLightRef.current) edgeLightRef.current.intensity = lifecycle.activation * (0.1 + lifecycle.inspection * 0.78) * (1 - collapse * 0.32);
+    if (edgeLightRef.current) edgeLightRef.current.intensity = lifecycle.activation * (0.12 + lifecycle.inspection * 0.9) * (1 - collapse * 0.32);
   });
 
   return (
