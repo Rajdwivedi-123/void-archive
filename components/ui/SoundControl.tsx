@@ -1,6 +1,17 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useArchiveAudio } from "@/audio/useArchiveAudio";
+import type { AudioDiagnostics } from "@/audio/audioTypes";
+
+function AudioDiagnosticsProbe({ read }: { read: () => AudioDiagnostics }) {
+  const [snapshot, setSnapshot] = useState(read);
+  useEffect(() => {
+    const interval = window.setInterval(() => setSnapshot(read()), 250);
+    return () => window.clearInterval(interval);
+  }, [read]);
+  return <output hidden data-void-audio-diagnostics={JSON.stringify(snapshot)} />;
+}
 
 export function SoundControl({ active, mode }: { active: boolean; mode: "journey" | "archive" | "inspect" }) {
   const audio = useArchiveAudio();
@@ -17,6 +28,7 @@ export function SoundControl({ active, mode }: { active: boolean; mode: "journey
         <span className="text-white/34">SOUND</span><span className="ml-3 text-white/78">{audio.enabled ? "ON" : "OFF"}</span>
       </button>
       {!audio.enabled && audio.preferenceRemembered && <p className="mt-2 pl-1 text-[6px] tracking-[.22em] text-white/24">SPATIAL AUDIO READY / TAP TO RESUME</p>}
+      {process.env.NODE_ENV !== "production" && <AudioDiagnosticsProbe read={audio.diagnostics} />}
     </div>
   );
 }

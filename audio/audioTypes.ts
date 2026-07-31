@@ -16,6 +16,16 @@ export type ArchiveAudioScene = {
 
 export type AudioDiagnostics = {
   contextState: AudioContextState | "uninitialized";
+  active: boolean;
+  masterGain: number;
+  ambienceGain: number;
+  artifactGain: number;
+  interactionGain: number;
+  transitionGain: number;
+  ambienceFilterHz: number;
+  limiterReductionDb: number;
+  connectedToDestination: boolean;
+  currentArtifact: ArtifactId | null;
   persistentSources: number;
   transientSources: number;
 };

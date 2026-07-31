@@ -35,7 +35,9 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     return engineRef.current;
   }, []);
   const activate = useCallback(async () => {
-    await engine().activate(profileRef.current);
+    const audioEngine = engine();
+    if (sceneRef.current) audioEngine.updateScene(sceneRef.current, profileRef.current);
+    await audioEngine.activate(profileRef.current);
     writePreference(true); setEnabled(true);
   }, [engine]);
   const mute = useCallback(() => { engineRef.current?.mute(); writePreference(false); setEnabled(false); }, []);
@@ -43,12 +45,15 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   const syncScene = useCallback((scene: ArchiveAudioScene) => { sceneRef.current = scene; engineRef.current?.updateScene(scene, profileRef.current); }, []);
   const cueInteraction = useCallback<ArchiveAudioContextValue["cueInteraction"]>((kind) => engineRef.current?.cueInteraction(kind), []);
   const cueControl = useCallback((artifact: ArtifactId, value: number) => engineRef.current?.cueControl(artifact, value), []);
-  const diagnostics = useCallback(() => engineRef.current?.diagnostics() ?? { contextState: "uninitialized", persistentSources: 0, transientSources: 0 }, []);
+  const diagnostics = useCallback(() => engineRef.current?.diagnostics() ?? {
+    contextState: "uninitialized", active: false, masterGain: 0, ambienceGain: 0, artifactGain: 0,
+    interactionGain: 0, transitionGain: 0, ambienceFilterHz: 0, limiterReductionDb: 0, connectedToDestination: false,
+    currentArtifact: null, persistentSources: 0, transientSources: 0,
+  }, []);
 
   useEffect(() => { if (sceneRef.current) engineRef.current?.updateScene(sceneRef.current, profile); }, [profile]);
   useEffect(() => { profileRef.current = profile; }, [profile]);
   useEffect(() => () => engineRef.current?.mute(), []);
-
   const value = useMemo<ArchiveAudioContextValue>(() => ({ enabled, preferenceRemembered, activate, mute, toggle, syncScene, cueInteraction, cueControl, diagnostics }), [activate, cueControl, cueInteraction, diagnostics, enabled, mute, preferenceRemembered, syncScene, toggle]);
   return <AudioContextValue.Provider value={value}>{children}</AudioContextValue.Provider>;
 }

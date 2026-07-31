@@ -7,6 +7,7 @@ const silent = .0001;
 export class ArchiveAudioEngine {
   private context: AudioContext | null = null;
   private master: GainNode | null = null;
+  private limiter: DynamicsCompressorNode | null = null;
   private ambienceBus: GainNode | null = null;
   private artifactBus: GainNode | null = null;
   private interactionBus: GainNode | null = null;
@@ -31,9 +32,9 @@ export class ArchiveAudioEngine {
     if (!this.context || !this.master) return;
     this.active = true;
     await this.context.resume();
-    this.ramp(this.master.gain, .68, .7);
+    this.ramp(this.master.gain, .92, .7);
     if (this.scene) this.applyScene(this.scene, profile, true);
-    if (profile.returningVisitor) this.tone(this.profileFrequency(profile), 1.35, .016, -.12, .12, "transition");
+    this.tone(profile.returningVisitor ? this.profileFrequency(profile) : 216, .56, .04, 0, .035, "transition");
     this.scheduleSparseResonance();
   }
 
@@ -56,8 +57,8 @@ export class ArchiveAudioEngine {
   cueInteraction(kind: "archive" | "inspect" | "record" | "scanner" | "subject" | "reset") {
     if (!this.active || !this.context) return;
     const cues = {
-      archive: [178, .34, .018, -.2], inspect: [242, .42, .018, .18], record: [410, .18, .012, -.08],
-      scanner: [126, .3, .014, 0], subject: [224, .8, .016, .1], reset: [92, .28, .012, 0],
+      archive: [178, .34, .026, -.2], inspect: [242, .42, .028, .18], record: [410, .18, .019, -.08],
+      scanner: [168, .3, .022, 0], subject: [224, .8, .026, .1], reset: [184, .28, .019, 0],
     } as const;
     const [frequency, duration, gain, pan] = cues[kind];
     if (kind === "scanner" && this.scene?.artifact === "005") return;
@@ -70,23 +71,37 @@ export class ArchiveAudioEngine {
     const intervention = this.profile?.archetype === "interventionist" ? 1.18 : 1;
     if (artifact === "001") {
       this.setArtifactVoice(artifact, value);
-      this.tone(112 + value * 46, .22, (.008 + value * .009) * intervention, -.24 + value * .18, 0, "interaction");
+      this.tone(148 + value * 58, .22, (.012 + value * .014) * intervention, -.24 + value * .18, 0, "interaction");
     } else if (artifact === "002") {
-      this.tone(360 + value * 120, .34, .01, -.22, .16, "interaction", true);
+      this.tone(360 + value * 120, .34, .017, -.22, .16, "interaction", true);
     } else if (artifact === "003") {
       const future = value > .66;
-      this.tone(future ? 622 : value < .34 ? 438 : 516, .11, .01, future ? .18 : -.12, future ? .004 : .07, "interaction");
-      if (!future) this.tone(516, .1, .006, .12, .17, "interaction");
+      this.tone(future ? 622 : value < .34 ? 438 : 516, .11, .017, future ? .18 : -.12, future ? .004 : .07, "interaction");
+      if (!future) this.tone(516, .1, .01, .12, .17, "interaction");
     } else if (artifact === "004") {
       const coherence = Math.min(1, value * .65 + confidence * .35);
-      this.tone(188 + coherence * 92, .14, .009 + coherence * .005, -.25 + coherence * .5, 0, "interaction");
+      this.tone(188 + coherence * 92, .14, .014 + coherence * .009, -.25 + coherence * .5, 0, "interaction");
     } else if (artifact === "006") {
-      this.tone(292 + value * 168, .72, .011, -.12 + value * .24, 0, "artifact");
+      this.tone(292 + value * 168, .72, .02, -.12 + value * .24, 0, "artifact");
     }
   }
 
   diagnostics(): AudioDiagnostics {
-    return { contextState: this.context?.state ?? "uninitialized", persistentSources: this.ambienceSources.length + (this.artifactOscillator ? 1 : 0), transientSources: this.transientSources };
+    return {
+      contextState: this.context?.state ?? "uninitialized",
+      active: this.active,
+      masterGain: this.master?.gain.value ?? 0,
+      ambienceGain: this.ambienceBus?.gain.value ?? 0,
+      artifactGain: this.artifactBus?.gain.value ?? 0,
+      interactionGain: this.interactionBus?.gain.value ?? 0,
+      transitionGain: this.transitionBus?.gain.value ?? 0,
+      ambienceFilterHz: this.ambienceFilter?.frequency.value ?? 0,
+      limiterReductionDb: this.limiter?.reduction ?? 0,
+      connectedToDestination: Boolean(this.context && this.master && this.ambienceBus && this.artifactBus),
+      currentArtifact: this.scene?.artifact ?? null,
+      persistentSources: this.ambienceSources.length + (this.artifactOscillator ? 1 : 0),
+      transientSources: this.transientSources,
+    };
   }
 
   private createGraph() {
@@ -98,20 +113,22 @@ export class ArchiveAudioEngine {
     const limiter = context.createDynamicsCompressor();
     limiter.threshold.value = -18; limiter.knee.value = 12; limiter.ratio.value = 4; limiter.attack.value = .012; limiter.release.value = .32;
     master.connect(limiter).connect(context.destination);
-    this.context = context; this.master = master;
-    this.ambienceBus = this.bus(.09); this.artifactBus = this.bus(.1); this.interactionBus = this.bus(.72); this.transitionBus = this.bus(.58);
+    this.context = context; this.master = master; this.limiter = limiter;
+    this.ambienceBus = this.bus(.4); this.artifactBus = this.bus(.34); this.interactionBus = this.bus(.88); this.transitionBus = this.bus(.72);
 
     const ambienceFilter = context.createBiquadFilter();
-    ambienceFilter.type = "lowpass"; ambienceFilter.frequency.value = 720; ambienceFilter.Q.value = .32;
+    ambienceFilter.type = "lowpass"; ambienceFilter.frequency.value = 920; ambienceFilter.Q.value = .32;
     ambienceFilter.connect(this.ambienceBus);
     this.ambienceFilter = ambienceFilter;
     const low = context.createOscillator(); const lowGain = context.createGain();
-    low.type = "sine"; low.frequency.value = 46; lowGain.gain.value = .055; low.connect(lowGain).connect(ambienceFilter); low.start();
+    low.type = "sine"; low.frequency.value = 46; lowGain.gain.value = .016; low.connect(lowGain).connect(ambienceFilter); low.start();
     const body = context.createOscillator(); const bodyGain = context.createGain();
-    body.type = "sine"; body.frequency.value = 118; bodyGain.gain.value = .018; body.connect(bodyGain).connect(ambienceFilter); body.start();
+    body.type = "sine"; body.frequency.value = 168; bodyGain.gain.value = .055; body.connect(bodyGain).connect(ambienceFilter); body.start();
+    const harmonic = context.createOscillator(); const harmonicGain = context.createGain();
+    harmonic.type = "sine"; harmonic.frequency.value = 336; harmonic.detune.value = 3; harmonicGain.gain.value = .026; harmonic.connect(harmonicGain).connect(ambienceFilter); harmonic.start();
     const noise = context.createBufferSource(); const noiseGain = context.createGain();
-    noise.buffer = this.noiseBuffer(context, 9); noise.loop = true; noiseGain.gain.value = .022; noise.connect(noiseGain).connect(ambienceFilter); noise.start();
-    this.ambienceSources = [low, body, noise];
+    noise.buffer = this.noiseBuffer(context, 9); noise.loop = true; noiseGain.gain.value = .04; noise.connect(noiseGain).connect(ambienceFilter); noise.start();
+    this.ambienceSources = [low, body, harmonic, noise];
 
     const artifactFilter = context.createBiquadFilter(); artifactFilter.type = "lowpass"; artifactFilter.frequency.value = 900;
     const panner = context.createStereoPanner(); const oscillator = context.createOscillator(); const voiceGain = context.createGain();
@@ -131,19 +148,19 @@ export class ArchiveAudioEngine {
     const isVoid = scene.artifact === "005" || scene.stage.includes("geometric-isolation");
     const memoryArrival = scene.stage.includes("memory-recovery") || scene.artifact === "006";
     const witness = profile.archetype === "witness";
-    const ambience = scene.archiveOpen ? .045 : isVoid ? .003 : memoryArrival ? .052 : witness ? .072 : .09;
+    const ambience = scene.archiveOpen ? .27 : isVoid ? .008 : memoryArrival ? .46 : witness ? .34 : .4;
     this.ramp(this.ambienceBus.gain, ambience, duration);
-    this.ramp(this.artifactBus.gain, isVoid ? .008 : scene.artifact ? (scene.inspecting ? .14 : .095) : .025, duration);
-    this.ramp(this.ambienceFilter.frequency, isVoid ? 115 : scene.artifact === "004" ? 1150 : memoryArrival ? 1560 : 720, duration);
+    this.ramp(this.artifactBus.gain, isVoid ? .018 : scene.artifact ? (scene.inspecting ? .43 : .34) : .1, duration);
+    this.ramp(this.ambienceFilter.frequency, isVoid ? 105 : scene.artifact === "004" ? 1250 : memoryArrival ? 1800 : 920, duration);
     if (scene.artifact) this.setArtifactVoice(scene.artifact, scene.control);
 
-    if (this.lastStage && this.lastStage !== scene.stage) {
+    if (!immediate && this.lastStage && this.lastStage !== scene.stage) {
       if (scene.stage.includes("geometric-isolation")) this.tone(186, .34, .007, .1, .02, "transition");
       if (scene.stage.includes("memory-recovery")) { this.tone(392, 1.15, .018, .05, .08, "transition"); this.tone(this.affinityFrequency(profile), .7, .006, -.18, .22, "artifact"); }
       if (scene.stage.includes("bio-isolation")) { this.tone(248, .28, .008, -.2, .04, "transition"); if (profile.archetype === "chronologist") this.tone(516, .12, .006, .16, 0, "transition"); }
       if (scene.stage.includes("object-four-arrival") && profile.archetype === "synaptic") { this.tone(211, .13, .006, -.24, 0, "artifact"); this.tone(278, .13, .006, .24, .11, "artifact"); }
     }
-    if (profile.n07Route && profile.n07Route !== this.lastRoute) {
+    if (!immediate && profile.n07Route && profile.n07Route !== this.lastRoute) {
       this.tone(267, .46, .006, -.35, .09, "transition");
       this.tone(401, .3, .004, .35, .22, "transition");
     }
