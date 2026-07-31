@@ -21,6 +21,7 @@ function makeStore(): RealityStore {
     freezeActive: false,
     projectedX: .5,
     projectedY: .5,
+    projectedVisible: true,
   };
   const publish = (next: RealitySession) => {
     session = next;
@@ -36,7 +37,7 @@ function makeStore(): RealityStore {
     hydrate: () => publish(loadSession()),
     setContext: (activeArtifact, mode, reducedMotion, qualityTier) => Object.assign(runtime, { activeArtifact, mode, reducedMotion, qualityTier }),
     recordPointer: (sample) => { runtime.pointer = sample; runtime.pointerHistory.push(sample); if (runtime.pointerHistory.length > 24) runtime.pointerHistory.shift(); },
-    setProjection: (projectedX, projectedY) => Object.assign(runtime, { projectedX, projectedY }),
+    setProjection: (projectedX, projectedY, projectedVisible) => Object.assign(runtime, { projectedX, projectedY, projectedVisible }),
     beginInspection: (id) => { activeInspection = { id, at: performance.now() }; },
     endInspection: (id) => {
       if (!activeInspection || activeInspection.id !== id) return;

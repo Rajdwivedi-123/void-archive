@@ -9,6 +9,7 @@ export const liquidMirrorVertexShader = /* glsl */ `
   varying vec2 vUv;
   varying float vViscousFold;
   varying float vEdgeDrift;
+  varying vec3 vViewNormal;
 
   void main() {
     vUv = uv;
@@ -31,6 +32,7 @@ export const liquidMirrorVertexShader = /* glsl */ `
     vec4 viewPosition = modelViewMatrix * vec4(transformed, 1.0);
     vViscousFold = viscousFold;
     vEdgeDrift = edgeDrift;
+    vViewNormal = normalize(normalMatrix * normal);
     gl_Position = projectionMatrix * viewPosition;
   }
 `;
@@ -49,6 +51,7 @@ export const liquidMirrorFragmentShader = /* glsl */ `
   varying vec2 vUv;
   varying float vViscousFold;
   varying float vEdgeDrift;
+  varying vec3 vViewNormal;
 
   float band(float value, float center, float width) {
     return 1.0 - smoothstep(width, width + 0.012, abs(value - center));
@@ -90,6 +93,9 @@ export const liquidMirrorFragmentShader = /* glsl */ `
     float broadResponse = 0.18 + pow(max(0.0, 1.0 - abs(p.x + vViscousFold * 0.06)), 3.2) * 0.28;
     float liquidSheen = (sin(p.x * 3.8 + p.y * 1.15 + vViscousFold * 0.9) * 0.5 + 0.5) * 0.11;
     liquidSheen += pow(max(0.0, 1.0 - abs(p.x * 0.72 + p.y * 0.18)), 7.0) * 0.13;
+    float microNormal = sin(p.x * 31.0 + vViscousFold * 4.0 - uTime * 0.08) * sin(p.y * 27.0 + uTime * 0.05);
+    float viewBreakup = pow(1.0 - abs(vViewNormal.z), 2.0) + smoothstep(0.42, 0.96, abs(p.x));
+    liquidSheen += smoothstep(0.72, 0.98, microNormal * 0.5 + 0.5) * viewBreakup * 0.075;
     float reflectedLight = architecture * 0.36 + secondary * 0.2 + tertiary * 0.14 + floorReturn * 0.08;
     reflectedLight *= uReflection;
     reflectedLight += revealSweep * 0.46 * uActivation;

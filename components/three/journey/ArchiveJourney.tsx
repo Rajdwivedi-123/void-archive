@@ -20,6 +20,9 @@ import { MemoryRecoveryPassage } from "./MemoryRecoveryPassage";
 import { MemoryCrystal } from "../memory-crystal/MemoryCrystal";
 import { MemoryCrystalChamber } from "../memory-crystal/MemoryCrystalChamber";
 import type { InspectionControlRef } from "@/artifacts/inspection";
+import type { GraphicsQuality } from "@/hooks/useGraphicsQuality";
+import { SelectiveVolumetrics } from "../effects/SelectiveVolumetrics";
+import { SignatureTransitions } from "./SignatureTransitions";
 
 type ArchiveJourneyProps = {
   tier: DeviceTier;
@@ -27,9 +30,10 @@ type ArchiveJourneyProps = {
   hasFinePointer: boolean;
   scrollProgress: MutableRefObject<number>;
   inspection: InspectionControlRef;
+  quality: GraphicsQuality;
 };
 
-export function ArchiveJourney({ tier, reducedMotion, hasFinePointer, scrollProgress, inspection }: ArchiveJourneyProps) {
+export function ArchiveJourney({ tier, quality, reducedMotion, hasFinePointer, scrollProgress, inspection }: ArchiveJourneyProps) {
   return (
     <group>
       <ArchiveCorridor tier={tier} />
@@ -45,10 +49,12 @@ export function ArchiveJourney({ tier, reducedMotion, hasFinePointer, scrollProg
       <NeuralRelic tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} inspection={inspection} />
       <GeometricIsolationPassage tier={tier} scrollProgress={scrollProgress} />
       <VoidChamber tier={tier} reducedMotion={reducedMotion} scrollProgress={scrollProgress} />
-      <VoidArtifact tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} inspection={inspection} />
+      <VoidArtifact tier={tier} quality={quality} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} inspection={inspection} />
       <MemoryRecoveryPassage tier={tier} />
       <MemoryCrystalChamber tier={tier} reducedMotion={reducedMotion} scrollProgress={scrollProgress} />
-      <MemoryCrystal tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} inspection={inspection} />
+      <MemoryCrystal tier={tier} quality={quality} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} inspection={inspection} />
+      <SelectiveVolumetrics scrollProgress={scrollProgress} quality={quality} reducedMotion={reducedMotion} />
+      <SignatureTransitions scrollProgress={scrollProgress} reducedMotion={reducedMotion} />
     </group>
   );
 }

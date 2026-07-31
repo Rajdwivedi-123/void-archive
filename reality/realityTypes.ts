@@ -34,6 +34,7 @@ export type RealityRuntime = {
   freezeActive: boolean;
   projectedX: number;
   projectedY: number;
+  projectedVisible: boolean;
 };
 
 export type RealitySnapshot = RealitySession & {
@@ -48,7 +49,7 @@ export type RealityStore = {
   hydrate: () => void;
   setContext: (artifact: ArtifactId | null, mode: RealityMode, reducedMotion: boolean, tier: DeviceTier) => void;
   recordPointer: (sample: PointerSample) => void;
-  setProjection: (x: number, y: number) => void;
+  setProjection: (x: number, y: number, visible: boolean) => void;
   beginInspection: (id: ArtifactId) => void;
   endInspection: (id: ArtifactId) => void;
   revisit: (id: ArtifactId) => void;

@@ -14,6 +14,7 @@ import {
   memoryPlaneVertexShader,
 } from "./shaders/memoryShaders";
 import type { InspectionControlRef } from "@/artifacts/inspection";
+import type { GraphicsQuality } from "@/hooks/useGraphicsQuality";
 
 type MemoryCrystalProps = {
   tier: DeviceTier;
@@ -21,6 +22,7 @@ type MemoryCrystalProps = {
   hasFinePointer: boolean;
   scrollProgress: MutableRefObject<number>;
   inspection: InspectionControlRef;
+  quality: GraphicsQuality;
 };
 
 type MemoryLayer = {
@@ -111,7 +113,7 @@ const fractureGeometries = fractureCurves.map((points, index) => {
 
 const smoothRange = (value: number, from: number, to: number) => THREE.MathUtils.smoothstep(value, from, to);
 
-export function MemoryCrystal({ tier, reducedMotion, hasFinePointer, scrollProgress, inspection }: MemoryCrystalProps) {
+export function MemoryCrystal({ tier, quality: graphicsQuality, reducedMotion, hasFinePointer, scrollProgress, inspection }: MemoryCrystalProps) {
   const rootRef = useRef<THREE.Group>(null);
   const crystalRef = useRef<THREE.Group>(null);
   const outerMaterialRefs = useRef<Array<THREE.ShaderMaterial | null>>([]);
@@ -125,9 +127,10 @@ export function MemoryCrystal({ tier, reducedMotion, hasFinePointer, scrollProgr
   const timeRef = useRef(0);
   const timeScaleRef = useRef(1);
   const { pointer } = useThree();
-  const quality = memoryCrystalArtifact.quality[tier];
-  const layerCount = quality.memoryLayers ?? 3;
-  const fractureCount = quality.memoryFractures ?? 3;
+  const artifactQuality = memoryCrystalArtifact.quality[tier];
+  const premium = graphicsQuality === "high" && tier === "desktop";
+  const layerCount = graphicsQuality === "conserve" ? Math.min(3, artifactQuality.memoryLayers ?? 3) : artifactQuality.memoryLayers ?? 3;
+  const fractureCount = artifactQuality.memoryFractures ?? 3;
 
   const outerUniforms = useMemo(() => Array.from({ length: 3 }, () => ({
     uTime: { value: 0 },
@@ -177,7 +180,7 @@ export function MemoryCrystal({ tier, reducedMotion, hasFinePointer, scrollProgr
       material.uniforms.uActivation.value = activation;
       material.uniforms.uRecall.value = reducedMotion ? lifecycle.inspection * 0.35 : recall;
       material.uniforms.uOpacity.value = lifecycle.visible * (0.44 + lifecycle.activation * 0.42);
-      material.uniforms.uPointer.value.copy(pointerRef.current).multiplyScalar(quality.pointerStrength);
+      material.uniforms.uPointer.value.copy(pointerRef.current).multiplyScalar(artifactQuality.pointerStrength);
     });
 
     layerMaterialRefs.current.forEach((material, index) => {
@@ -190,13 +193,14 @@ export function MemoryCrystal({ tier, reducedMotion, hasFinePointer, scrollProgr
       material.uniforms.uActivation.value = staged;
       material.uniforms.uRecall.value = reducedMotion ? lifecycle.inspection * 0.45 : recall;
       material.uniforms.uOpacity.value = missingSpatialLayer ? .025 : inspecting ? 0.18 + stratumFocus * 0.72 : 0.48 + inspectionAmount * 0.34;
-      material.uniforms.uPointer.value.copy(pointerRef.current).multiplyScalar(quality.pointerStrength);
+      material.uniforms.uPointer.value.copy(pointerRef.current).multiplyScalar(artifactQuality.pointerStrength);
       const layer = layerRefs.current[index];
       if (layer) {
         const contradiction = index % 2 ? -1 : 1;
         layer.position.x = memoryLayers[index].position[0] + pointerRef.current.x * memoryLayers[index].depth * 0.055 * contradiction;
         const temporalMisorder = sessionBias > .32 && sessionBias < .54 ? (index % 2 ? -.08 : .08) : 0;
-        layer.position.z = memoryLayers[index].position[2] + inspectionAmount * (index - layerCount / 2) * 0.018 + temporalMisorder + (inspecting ? (memoryLayers[index].depth - inspection.current.primary) * 0.32 : 0);
+        const impossibleDepth = premium ? (memoryLayers[index].depth - .5) * .46 : 0;
+        layer.position.z = memoryLayers[index].position[2] + impossibleDepth + inspectionAmount * (index - layerCount / 2) * 0.018 + temporalMisorder + (inspecting ? (memoryLayers[index].depth - inspection.current.primary) * (premium ? .52 : .32) : 0);
         layer.scale.x = memoryLayers[index].scale[0] * (sessionBias < .12 ? .92 : 1);
         layer.rotation.y = memoryLayers[index].rotation[1] + pointerRef.current.x * 0.025 * contradiction;
       }
@@ -206,7 +210,7 @@ export function MemoryCrystal({ tier, reducedMotion, hasFinePointer, scrollProgr
       if (!material) return;
       const staged = THREE.MathUtils.clamp(lifecycle.entry * 2.2 - index * 0.13, 0, 1);
       const glint = reducedMotion ? 0.4 : Math.sin(timeRef.current * 0.42 + index * 1.8) * 0.5 + 0.5;
-      material.opacity = staged * (0.035 + lifecycle.activation * (0.11 + glint * 0.12) + recall * 0.18);
+      material.opacity = staged * (0.035 + lifecycle.activation * (0.11 + glint * (premium ? 0.18 : 0.12)) + recall * 0.18);
     });
 
     if (signatureMaterialRef.current) {
@@ -260,9 +264,9 @@ export function MemoryCrystal({ tier, reducedMotion, hasFinePointer, scrollProgr
                   color={index === 0 ? "#b3bcb8" : "#77817d"}
                   roughness={0.18}
                   metalness={0.08}
-                  transmission={tier === "tablet" ? 0.52 : 0.68}
-                  thickness={1.05}
-                  ior={1.38}
+                  transmission={tier === "tablet" ? 0.52 : premium ? 0.76 : 0.68}
+                  thickness={premium ? 1.42 : 1.05}
+                  ior={premium ? 1.44 : 1.38}
                   attenuationColor="#85908c"
                   attenuationDistance={4.8}
                   transparent
@@ -343,6 +347,7 @@ export function MemoryCrystal({ tier, reducedMotion, hasFinePointer, scrollProgr
           <meshStandardMaterial color="#111615" metalness={0.72} roughness={0.36} transparent opacity={0.76} />
         </mesh>
         <pointLight ref={memoryLightRef} color="#e6e6dc" intensity={0} distance={7} decay={2.35} position={[0.3, 0.7, 1.15]} />
+        {premium && <mesh position={[0,-3.78,.2]} rotation={[-Math.PI/2,0,-.18]} scale={[2.8,1.3,1]}><planeGeometry args={[1,1]}/><meshBasicMaterial color="#cbd3ce" transparent opacity={0.035} blending={THREE.AdditiveBlending} depthWrite={false}/></mesh>}
       </group>
     </group>
   );

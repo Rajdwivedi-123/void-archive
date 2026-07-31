@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { archiveArtifacts, archiveData } from "@/artifacts/archiveData";
 import type { ArtifactId } from "@/artifacts/inspection";
 import { useReality, useRealitySnapshot } from "@/reality/RealityProvider";
+import type { GraphicsQuality } from "@/hooks/useGraphicsQuality";
 
 type ArchiveSection = "index" | "connections" | "sectors" | "system";
 
@@ -13,6 +14,7 @@ type ArchiveModeProps = {
   selectedId: ArtifactId;
   postJourney: boolean;
   reducedMotion: boolean;
+  graphicsQuality: GraphicsQuality;
   onClose: () => void;
   onSelect: (id: ArtifactId) => void;
   onRevisit: (id: ArtifactId) => void;
@@ -52,6 +54,7 @@ export function ArchiveMode({
   selectedId,
   postJourney,
   reducedMotion,
+  graphicsQuality,
   onClose,
   onSelect,
   onRevisit,
@@ -171,7 +174,7 @@ export function ArchiveMode({
 
           {section === "connections" && <ConnectionMap discoveredCount={discoveredCount} revealN07={postJourney || session.event13Discovered} mirrorDepth={session.mirrorObservationDepth} onSelect={(id) => { selectArtifact(id); setSection("index"); }} />}
           {section === "sectors" && <SectorMap discoveredCount={discoveredCount} revealN07={postJourney || session.event13Discovered} voidMeasured={session.voidProbeCount > 0} onSelect={(id) => { selectArtifact(id); setSection("index"); }} />}
-          {section === "system" && <SystemPanel discoveredCount={discoveredCount} postJourney={postJourney} seed={session.seed} affinity={session.affinity} confidence={session.observerConfidence} />}
+          {section === "system" && <SystemPanel discoveredCount={discoveredCount} postJourney={postJourney} seed={session.seed} affinity={session.affinity} confidence={session.observerConfidence} quality={graphicsQuality} />}
         </div>
       </div>
     </section>
@@ -225,12 +228,13 @@ function SectorMap({ discoveredCount, revealN07, voidMeasured, onSelect }: { dis
   );
 }
 
-function SystemPanel({ discoveredCount, postJourney, seed, affinity, confidence }: { discoveredCount: number; postJourney: boolean; seed: string; affinity: string; confidence: number }) {
+function SystemPanel({ discoveredCount, postJourney, seed, affinity, confidence, quality }: { discoveredCount: number; postJourney: boolean; seed: string; affinity: string; confidence: number; quality: GraphicsQuality }) {
   const rows = [
     ["ARCHIVE STATUS", `${discoveredCount} ANOMALIES CONTAINED`], ["ACTIVE SECTORS", String(discoveredCount).padStart(2, "0")],
     ["OBSERVER STATUS", postJourney ? "TRACKED / 07" : `PATTERN ${Math.round(confidence * 100)}%`], ["SESSION", `LOCAL / ${seed}`],
     ["OBSERVER AFFINITY", affinity.toUpperCase()],
     ["RENDER STATUS", "NOMINAL"], ["AUDIO BUS", "STANDBY / NO ASSET LINK"],
+    ["GRAPHICS TIER", quality.toUpperCase()],
   ];
   return <div className="mx-auto max-w-3xl"><p className="text-[8px] tracking-[0.42em] text-white/28">ARCHIVE OPERATING LAYER</p><h3 className="mt-4 text-2xl tracking-[0.28em] sm:text-4xl">SYSTEM</h3><div className="mt-10 border-y border-white/10">{rows.map(([label, value]) => <div key={label} className="grid min-h-16 grid-cols-[1fr_1.25fr] items-center border-b border-white/7 text-[8px] tracking-[0.24em]"><span className="text-white/29">{label}</span><span className="text-white/68">{value}</span></div>)}</div><p className="mt-7 text-[8px] leading-5 tracking-[0.22em] text-white/26">SOUND REMAINS DISABLED UNTIL A USER-INITIATED ASSET BUS IS AVAILABLE. NO AUDIO AUTOPLAY IS PERMITTED.</p></div>;
 }

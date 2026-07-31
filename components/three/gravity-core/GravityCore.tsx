@@ -9,10 +9,12 @@ import { CoreSphere } from "./CoreSphere";
 import { GravityCoreLights } from "./GravityCoreLights";
 import { GravityField } from "./GravityField";
 import { GravityParticles } from "./GravityParticles";
+import { GravityLens } from "./GravityLens";
 import { GravityRings } from "./GravityRings";
 import { OrbitalFragments } from "./OrbitalFragments";
 import type { ActivationState } from "./types";
 import type { InspectionControlRef } from "@/artifacts/inspection";
+import type { GraphicsQuality } from "@/hooks/useGraphicsQuality";
 
 type GravityCoreProps = {
   active: boolean;
@@ -21,6 +23,7 @@ type GravityCoreProps = {
   tier: DeviceTier;
   hasFinePointer: boolean;
   inspection: InspectionControlRef;
+  quality: GraphicsQuality;
 };
 
 const stableState: ActivationState = {
@@ -36,7 +39,7 @@ const stableState: ActivationState = {
   sweep: 0,
 };
 
-export function GravityCore({ active, reducedMotion, scrollProgress, tier, hasFinePointer, inspection }: GravityCoreProps) {
+export function GravityCore({ active, reducedMotion, scrollProgress, tier, quality, hasFinePointer, inspection }: GravityCoreProps) {
   const groupRef = useRef<THREE.Group>(null);
   const activation = useRef<ActivationState>(reducedMotion ? { ...stableState } : {
     outer: 0,
@@ -111,7 +114,8 @@ export function GravityCore({ active, reducedMotion, scrollProgress, tier, hasFi
       <GravityRings {...motionProps} />
       <CoreSphere {...motionProps} />
       <OrbitalFragments {...motionProps} tier={tier} />
-      <GravityParticles {...motionProps} tier={tier} />
+      <GravityParticles {...motionProps} tier={tier} quality={quality} inspection={inspection} />
+      {tier !== "mobile" && <GravityLens inspection={inspection} />}
       <GravityField {...motionProps} />
       <GravityCoreLights activation={activation} reducedMotion={reducedMotion} />
 

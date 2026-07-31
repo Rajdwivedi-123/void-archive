@@ -13,6 +13,7 @@ import type { DeviceTier } from "@/hooks/useDeviceProfile";
 import { ArchiveJourney } from "./journey/ArchiveJourney";
 import { JourneyCamera } from "./journey/JourneyCamera";
 import type { InspectionControlRef } from "@/artifacts/inspection";
+import type { GraphicsQuality } from "@/hooks/useGraphicsQuality";
 
 type ExperienceProps = {
   isSceneReady: boolean;
@@ -20,11 +21,12 @@ type ExperienceProps = {
   scrollProgress: MutableRefObject<number>;
   inspection: InspectionControlRef;
   tier: DeviceTier;
+  quality: GraphicsQuality;
   hasFinePointer: boolean;
   onIntroComplete: () => void;
 };
 
-export function Experience({ isSceneReady, reducedMotion, scrollProgress, inspection, tier, hasFinePointer, onIntroComplete }: ExperienceProps) {
+export function Experience({ isSceneReady, reducedMotion, scrollProgress, inspection, tier, quality, hasFinePointer, onIntroComplete }: ExperienceProps) {
   const [introComplete, setIntroComplete] = useState(false);
 
   return (
@@ -32,13 +34,14 @@ export function Experience({ isSceneReady, reducedMotion, scrollProgress, inspec
       <color attach="background" args={["#010202"]} />
       <fog attach="fog" args={["#010202", 8.5, 30]} />
       <ArchiveChamber />
-      <ArchiveJourney tier={tier} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} inspection={inspection} />
+      <ArchiveJourney tier={tier} quality={quality} reducedMotion={reducedMotion} hasFinePointer={hasFinePointer} scrollProgress={scrollProgress} inspection={inspection} />
       <GravityCore
         active={introComplete}
         reducedMotion={reducedMotion}
         scrollProgress={scrollProgress}
         inspection={inspection}
         tier={tier}
+        quality={quality}
         hasFinePointer={hasFinePointer}
       />
       <DustField reducedMotion={reducedMotion} />

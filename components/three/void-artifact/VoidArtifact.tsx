@@ -14,6 +14,8 @@ import {
   voidVertexShader,
 } from "./shaders/voidShaders";
 import type { InspectionControlRef } from "@/artifacts/inspection";
+import type { GraphicsQuality } from "@/hooks/useGraphicsQuality";
+import { VoidSdfVolume } from "./VoidSdfVolume";
 
 type VoidArtifactProps = {
   tier: DeviceTier;
@@ -21,6 +23,7 @@ type VoidArtifactProps = {
   hasFinePointer: boolean;
   scrollProgress: MutableRefObject<number>;
   inspection: InspectionControlRef;
+  quality: GraphicsQuality;
 };
 
 const boundaryPoints = [
@@ -56,7 +59,7 @@ const seamGeometries = seamDefinitions.map((points, index) => {
 
 const smoothRange = (value: number, from: number, to: number) => THREE.MathUtils.smoothstep(value, from, to);
 
-export function VoidArtifact({ tier, reducedMotion, hasFinePointer, scrollProgress, inspection }: VoidArtifactProps) {
+export function VoidArtifact({ tier, quality: graphicsQuality, reducedMotion, hasFinePointer, scrollProgress, inspection }: VoidArtifactProps) {
   const rootRef = useRef<THREE.Group>(null);
   const boundaryRef = useRef<THREE.Mesh>(null);
   const boundaryMaterialRef = useRef<THREE.ShaderMaterial>(null);
@@ -66,9 +69,9 @@ export function VoidArtifact({ tier, reducedMotion, hasFinePointer, scrollProgre
   const timeRef = useRef(0);
   const pointerRef = useRef(new THREE.Vector2());
   const { pointer } = useThree();
-  const quality = voidArtifact.quality[tier];
-  const particleCount = quality.voidParticles ?? 20;
-  const seamCount = quality.fractureSeams ?? 4;
+  const artifactQuality = voidArtifact.quality[tier];
+  const particleCount = artifactQuality.voidParticles ?? 20;
+  const seamCount = artifactQuality.fractureSeams ?? 4;
 
   const shapeGeometry = useMemo(() => {
     const shape = new THREE.Shape(boundaryPoints);
@@ -127,7 +130,7 @@ export function VoidArtifact({ tier, reducedMotion, hasFinePointer, scrollProgre
     material.uniforms.uActivation.value = Math.max(lifecycle.entry * 0.4, activation);
     material.uniforms.uCollapse.value = reducedMotion ? 0.32 * lifecycle.inspection : collapse;
     material.uniforms.uOpacity.value = lifecycle.visible * (0.78 + lifecycle.activation * 0.21);
-    material.uniforms.uPointer.value.copy(pointerRef.current).multiplyScalar(quality.pointerStrength);
+    material.uniforms.uPointer.value.copy(pointerRef.current).multiplyScalar(artifactQuality.pointerStrength);
 
     if (boundaryRef.current) {
       const scale = 0.88 + lifecycle.entry * 0.12 + (reducedMotion ? lifecycle.inspection * 0.025 : collapse * 0.11);
@@ -164,6 +167,7 @@ export function VoidArtifact({ tier, reducedMotion, hasFinePointer, scrollProgre
 
   return (
     <group ref={rootRef} position={[5.3, 4.25, -282]} visible={false}>
+      {tier !== "mobile" && <VoidSdfVolume quality={graphicsQuality} inspection={inspection} />}
       <mesh position={[-0.16, 0.1, -0.08]} scale={[1.045, 1.035, 1]}>
         <primitive attach="geometry" object={shapeGeometry} />
         <meshBasicMaterial color="#0b0d0c" transparent opacity={0.045} depthWrite={false} />

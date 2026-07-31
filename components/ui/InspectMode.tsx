@@ -26,6 +26,15 @@ function valueLabel(id: ArtifactId, value: number) {
   return value > .82 ? "STRATUM 07 / ACCESS DENIED" : `STRATUM ${String(Math.max(1, Math.ceil(value * 6))).padStart(2, "0")} / RECALLING`;
 }
 
+const spatialMeasure: Record<ArtifactId, string> = {
+  "001": "FIELD RADIUS / 2.84 M",
+  "002": "SURFACE OFFSET / 0.18 M",
+  "003": "CAUSAL GAP / 7.013 S",
+  "004": "NETWORK DEPTH / 14.2 M",
+  "005": "BOUNDARY RETURN / NULL",
+  "006": "REFRACTION DEPTH / 1.62 M",
+};
+
 export function InspectMode({ artifact, primary, scanner, reducedMotion, onPrimary, onScanner, onPointer, onExit }: InspectModeProps) {
   const [activeHotspot, setActiveHotspot] = useState(0);
   const [futureAnnounced, setFutureAnnounced] = useState(false);
@@ -52,7 +61,12 @@ export function InspectMode({ artifact, primary, scanner, reducedMotion, onPrima
     if (!artifact || !anchorRef.current) return;
     let frame = 0;
     const update = () => {
-      if (anchorRef.current) anchorRef.current.style.transform = `translate3d(${reality.runtime.projectedX * innerWidth}px,calc(${reality.runtime.projectedY * innerHeight}px - 100%),0)`;
+      if (anchorRef.current) {
+        anchorRef.current.style.transform = `translate3d(${reality.runtime.projectedX * innerWidth}px,calc(${reality.runtime.projectedY * innerHeight}px - 100%),0)`;
+        const withinFrame = reality.runtime.projectedX > .03 && reality.runtime.projectedX < .97
+          && reality.runtime.projectedY > .05 && reality.runtime.projectedY < .95;
+        anchorRef.current.style.opacity = withinFrame ? "1" : "0";
+      }
       frame = requestAnimationFrame(update);
     };
     frame = requestAnimationFrame(update);
@@ -87,7 +101,10 @@ export function InspectMode({ artifact, primary, scanner, reducedMotion, onPrima
       onPointerMove={handlePointer}
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_28%,rgba(0,0,0,.34)_82%)]" />
-      <div ref={anchorRef} data-diegetic-anchor className="pointer-events-none absolute left-0 top-0 h-12 w-px -translate-y-full bg-gradient-to-t from-white/28 to-transparent"><span className="absolute -bottom-1 -left-1 h-2 w-2 rounded-full border border-white/30" /></div>
+      <div ref={anchorRef} data-diegetic-anchor className="pointer-events-none absolute left-0 top-0 z-[2] h-12 w-px -translate-y-full bg-gradient-to-t from-white/28 to-transparent transition-opacity duration-200">
+        <span className="absolute -bottom-1 -left-1 h-2 w-2 rounded-full border border-white/30" />
+        <span className="absolute left-3 top-0 whitespace-nowrap border-l border-white/14 pl-2 text-[6px] tracking-[0.24em] text-white/32 sm:text-[7px]">{spatialMeasure[artifact.id]}</span>
+      </div>
       <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-5 sm:p-8 lg:p-10">
         <div className="border-l border-white/25 pl-4">
           <p className="text-[8px] tracking-[0.42em] text-white/35">INSPECT MODE / {artifact.id === "005" ? "N-__" : data.sector}</p>

@@ -19,6 +19,7 @@ import { archiveArtifacts } from "@/artifacts/archiveData";
 import type { ArtifactId, InspectionControl } from "@/artifacts/inspection";
 import { RealityProvider, useReality, useRealitySnapshot } from "@/reality/RealityProvider";
 import { RealityEffects } from "./RealityEffects";
+import { useGraphicsQuality } from "@/hooks/useGraphicsQuality";
 
 function stageArtifact(stage: string): ArtifactId | null {
   if (stage.startsWith("object-two")) return "002";
@@ -52,6 +53,7 @@ function VoidArchiveExperience() {
   const realitySession = useRealitySnapshot();
   const reducedMotion = useReducedMotion();
   const { tier, hasFinePointer } = useDeviceProfile();
+  const { quality } = useGraphicsQuality(tier, reducedMotion);
   const { progressRef, hasEnteredArtifact, journeyStage } = useArchiveScroll();
   const discoveredCount = useArchiveDiscovery(journeyStage);
   const inspectedArtifact = archiveArtifacts.find((artifact) => artifact.id === inspectedId) ?? null;
@@ -211,11 +213,11 @@ function VoidArchiveExperience() {
       {!interactionHidden && <JourneyUI stage={journeyStage} />}
       <ArchiveEnding stage={journeyStage} reducedMotion={reducedMotion} onOpenArchive={() => setArchiveOpen(true)} />
       <ArchiveCommand active={introComplete && !interactionHidden && journeyStage !== "session-complete"} discoveredCount={discoveredCount} onOpen={() => setArchiveOpen(true)} />
-      <ArchiveMode open={archiveOpen} discoveredCount={discoveredCount} selectedId={selectedId} postJourney={postJourney} reducedMotion={reducedMotion} onClose={() => setArchiveOpen(false)} onSelect={setSelectedId} onRevisit={(id) => seekArtifact(id, false)} onInspect={(id) => seekArtifact(id, true)} />
+      <ArchiveMode open={archiveOpen} discoveredCount={discoveredCount} selectedId={selectedId} postJourney={postJourney} reducedMotion={reducedMotion} graphicsQuality={quality} onClose={() => setArchiveOpen(false)} onSelect={setSelectedId} onRevisit={(id) => seekArtifact(id, false)} onInspect={(id) => seekArtifact(id, true)} />
       <InspectMode artifact={inspectedArtifact} primary={inspectionPrimary} scanner={scannerActive} reducedMotion={reducedMotion} onPrimary={handlePrimary} onScanner={handleScanner} onPointer={handleInspectionPointer} onExit={() => setInspectedId(null)} />
       <RealityEffects artifact={interactionHidden ? realityArtifact : stageArtifact(journeyStage)} primary={inspectionPrimary} freezeActive={freezeActive} reducedMotion={reducedMotion} />
       <LoaderOverlay isVisible={isLoading} reducedMotion={reducedMotion} />
-      <ArchiveCanvas isSceneReady={!isLoading} reducedMotion={reducedMotion} scrollProgress={progressRef} inspection={inspectionRef} tier={tier} hasFinePointer={hasFinePointer} onIntroComplete={handleIntroComplete} />
+      <ArchiveCanvas isSceneReady={!isLoading} reducedMotion={reducedMotion} scrollProgress={progressRef} inspection={inspectionRef} tier={tier} quality={quality} hasFinePointer={hasFinePointer} onIntroComplete={handleIntroComplete} />
     </main>
   );
 }

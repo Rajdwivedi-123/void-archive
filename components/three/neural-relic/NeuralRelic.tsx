@@ -175,7 +175,9 @@ export function NeuralRelic({ tier, reducedMotion, hasFinePointer, scrollProgres
 
     rootRef.current.visible = lifecycle.visible > 0.001 || inspecting;
     const breath = reducedMotion ? 1 : 1 + Math.sin(timeRef.current * 0.55) * 0.007 * lifecycle.activation;
-    rootRef.current.scale.setScalar((0.88 + lifecycle.entry * 0.12) * breath);
+    const matchShift = reducedMotion ? 0 : smootherRange(progress, .808, .819) * (1 - smootherRange(progress, .826, .839));
+    rootRef.current.scale.setScalar((0.88 + lifecycle.entry * 0.12) * breath * (1 + matchShift * 1.35));
+    rootRef.current.position.z = -220 + matchShift * 4.2;
     rootRef.current.rotation.y = THREE.MathUtils.damp(rootRef.current.rotation.y, pointerRef.current.x * 0.01 * adaptation, 2.2, delta);
     rootRef.current.rotation.x = THREE.MathUtils.damp(rootRef.current.rotation.x, pointerRef.current.y * 0.006 * adaptation, 2.2, delta);
     if (clusterRef.current) {

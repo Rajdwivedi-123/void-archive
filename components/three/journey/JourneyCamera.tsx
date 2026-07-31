@@ -81,6 +81,11 @@ const mobileFrames: CameraKeyframe[] = desktopFrames.map((frame, index) => ({
       : frame.at >= liquidMirrorArtifact.camera.entryAt
         ? [4.72, frame.position[1] + 0.18, frame.position[2] - 0.35]
       : [frame.position[0], frame.position[1] + (index > 3 ? 0.15 : 0), frame.position[2]],
+  target: frame.at >= memoryCrystalArtifact.camera.entryAt
+    ? [frame.target[0], frame.target[1] - 1.55, frame.target[2]]
+    : frame.at >= voidArtifact.camera.entryAt
+      ? [frame.target[0], frame.target[1] - 1.2, frame.target[2]]
+      : frame.target,
   roll: 0,
   fov: index > 3 ? 48 : 44,
 }));
@@ -145,7 +150,9 @@ export function JourneyCamera({ introComplete, reducedMotion, scrollProgress, in
     state.camera.lookAt(smoothedTarget);
     if (inspectState.active) {
       projectedTarget.copy(smoothedTarget).project(state.camera);
-      reality.setProjection(projectedTarget.x * .5 + .5, projectedTarget.y * -.5 + .5);
+      const projectedVisible = Number.isFinite(projectedTarget.x) && Number.isFinite(projectedTarget.y)
+        && Math.abs(projectedTarget.x) < .94 && Math.abs(projectedTarget.y) < .9;
+      reality.setProjection(projectedTarget.x * .5 + .5, projectedTarget.y * -.5 + .5, projectedVisible);
     }
     if (!reducedMotion && composition.roll !== 0) state.camera.rotateZ(composition.roll);
     if (state.camera instanceof THREE.PerspectiveCamera) {
