@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { FacilityProgress, FacilityRoom, NexusInteractionId } from "@/game/gameTypes";
 import type { NexusControlStore } from "@/game/NexusControlStore";
@@ -63,12 +63,28 @@ type NexusHudProps = {
 export function NexusHUD({ entered, active, target, scanner, pointerLocked, tier, hasFinePointer, controls, session, tutorialVisible, notice, room, progress, objective, onEnter, onBegin, onArchive, onSystem, onInteract, onScanner }: NexusHudProps) {
   const mutations = resolveFacilityMutations(progress.consequences);
   const look = useRef<{ x: number; y: number } | null>(null);
+  const [usedControls, setUsedControls] = useState({ move: false, look: false, interact: false, scanner: false, release: false });
   const touch = tier !== "desktop" || !hasFinePointer;
-  const setMove = (key: "forward" | "backward" | "left" | "right", value: boolean) => controls.setMovement(key, value);
+  const markUsed = useCallback((control: keyof typeof usedControls) => setUsedControls((current) => current[control] ? current : { ...current, [control]: true }), []);
+  useEffect(() => {
+    if (!entered || !active || touch) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.code)) markUsed("move");
+      if (event.code === "KeyE" && target) markUsed("interact");
+      if (event.code === "KeyQ") markUsed("scanner");
+      if (event.code === "Escape" && pointerLocked) markUsed("release");
+    };
+    const onMouse = (event: MouseEvent) => { if (pointerLocked && (event.movementX || event.movementY)) markUsed("look"); };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("mousemove", onMouse);
+    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("mousemove", onMouse); };
+  }, [active, entered, markUsed, pointerLocked, target, touch]);
+  const setMove = (key: "forward" | "backward" | "left" | "right", value: boolean) => { if (value) markUsed("move"); controls.setMovement(key, value); };
   const lookStart = (event: ReactPointerEvent) => { look.current = { x: event.clientX, y: event.clientY }; event.currentTarget.setPointerCapture(event.pointerId); };
   const lookMove = (event: ReactPointerEvent) => {
     if (!look.current) return;
     controls.addLook(event.clientX - look.current.x, event.clientY - look.current.y);
+    markUsed("look");
     look.current = { x: event.clientX, y: event.clientY };
   };
   const lookEnd = () => { look.current = null; };
@@ -79,7 +95,7 @@ export function NexusHUD({ entered, active, target, scanner, pointerLocked, tier
         <div className="border-l border-white/24 pl-4">
           <p className="text-[8px] tracking-[.46em] text-white/38">VOID ARCHIVE</p>
           <p className="mt-2 text-[11px] tracking-[.32em] text-white/82">{roomNames[room]}</p>
-          <p className="mt-3 max-w-64 text-[7px] tracking-[.26em] text-white/34">DIRECTIVE / {objective}<br />ROOM INDEX / {String(progress.discoveredRooms.length).padStart(2, "0")}</p>
+          <p className="mt-3 max-w-64 text-[7px] tracking-[.26em] text-white/34">ARCHIVE DIRECTIVE<br /><span className="mt-1 inline-block text-white/72">{objective}</span><br />ROOM INDEX / {String(progress.discoveredRooms.length).padStart(2, "0")}</p>
         </div>
         <div className="text-right text-[7px] leading-5 tracking-[.25em] text-white/32">
           <p>{session.returningVisitor ? "OBSERVER 07 DETECTED" : "OBSERVER / UNREGISTERED"}</p>
@@ -93,17 +109,24 @@ export function NexusHUD({ entered, active, target, scanner, pointerLocked, tier
         <div className={`pointer-events-none absolute left-1/2 top-1/2 h-[5px] w-[5px] -translate-x-1/2 -translate-y-1/2 rounded-full border transition-all ${target ? "scale-150 border-white/80 bg-white/20" : "border-white/38"}`} aria-hidden="true" />
         {target && <div className="pointer-events-none absolute left-1/2 top-[calc(50%+1.4rem)] -translate-x-1/2 text-center">
           <p className="text-[7px] tracking-[.3em] text-white/42">{interactionCopy[target].title}</p>
-          <p className="mt-2 text-[8px] tracking-[.34em] text-white/82"><span className="mr-3 border border-white/25 px-2 py-1">{touch ? "TAP" : "E"}</span>{interactionCopy[target].action}</p>
+          <p className="mt-2 text-[8px] tracking-[.34em] text-white/82"><span className="border border-white/25 px-2 py-1">{touch ? "TAP / INTERACT" : "E / INTERACT"}</span></p>
+          <p className="mt-3 text-[6px] tracking-[.28em] text-white/42">{interactionCopy[target].action}</p>
         </div>}
         {scanner && <div className="pointer-events-none absolute inset-4 border border-white/[.07] sm:inset-7">
           <div className="absolute left-3 top-3 border-l border-white/28 pl-3 text-[7px] leading-5 tracking-[.26em] text-white/42">SCANNER / ACTIVE<br />{target ? interactionCopy[target].measure : "RETURN / NO LOCAL ANOMALY"}</div>
           <div className="absolute bottom-3 right-3 text-right text-[6px] leading-4 tracking-[.24em] text-white/24">AZ 00.42 / EL 01.72<br />FIELD RESOLUTION / LOW</div>
         </div>}
         {notice && <div className="pointer-events-none absolute bottom-28 left-1/2 -translate-x-1/2 border-l border-white/25 bg-black/45 px-4 py-3 text-center text-[7px] tracking-[.26em] text-white/58 backdrop-blur-sm">{notice}</div>}
-        {tutorialVisible && !touch && <div className="pointer-events-none absolute bottom-9 left-9 text-[7px] leading-6 tracking-[.28em] text-white/34">WASD / MOVE<br />MOUSE / LOOK<br />E / INTERACT<br />Q / SCANNER<br />ESC / RELEASE</div>}
+        {tutorialVisible && !touch && <div className="pointer-events-none absolute bottom-9 left-9 text-[7px] leading-6 tracking-[.28em] text-white/34">
+          {!usedControls.move && <p className="transition-opacity">WASD / MOVE</p>}
+          {!usedControls.look && <p className="transition-opacity">MOUSE / LOOK</p>}
+          {!usedControls.interact && <p className="transition-opacity">E / INTERACT</p>}
+          {!usedControls.scanner && <p className="transition-opacity">Q / SCANNER</p>}
+          {!usedControls.release && <p className="transition-opacity">ESC / RELEASE</p>}
+        </div>}
         {!touch && !pointerLocked && active && <p className="pointer-events-none absolute bottom-9 left-1/2 -translate-x-1/2 text-[7px] tracking-[.3em] text-white/34">CLICK WORLD / CAPTURE MOUSE</p>}
-        <div className="pointer-events-auto absolute right-5 top-28 z-20 flex gap-2 sm:right-8 sm:top-32">{room === "nexus" && <button type="button" aria-label="Begin Observation Protocol" onClick={onBegin} className="min-h-10 border border-white/16 bg-black/32 px-3 text-[7px] tracking-[.22em] text-white/52">OBSERVE</button>}<button type="button" aria-label="Open Nexus archive" onClick={onArchive} className="min-h-10 border border-white/10 bg-black/28 px-3 text-[7px] tracking-[.22em] text-white/38">ARCHIVE</button><button type="button" aria-label="Open Nexus system terminal" onClick={onSystem} className="min-h-10 border border-white/10 bg-black/28 px-3 text-[7px] tracking-[.22em] text-white/38">SYSTEM</button></div>
-        <button type="button" onClick={onScanner} className="pointer-events-auto absolute bottom-5 right-5 z-20 min-h-11 border border-white/14 bg-black/36 px-4 text-[7px] tracking-[.25em] text-white/52 sm:bottom-8 sm:right-8">SCANNER / {scanner ? "ACTIVE" : "OFF"}</button>
+        <div className="pointer-events-auto absolute right-5 top-28 z-20 flex gap-1 opacity-55 transition-opacity hover:opacity-100 focus-within:opacity-100 sm:right-8 sm:top-32"><span className="self-center pr-2 text-[6px] tracking-[.24em] text-white/28">ACCESS</span>{room === "nexus" && <button type="button" aria-label="Accessibility shortcut: Begin Observation Protocol" onClick={onBegin} className="min-h-9 border border-white/10 bg-black/24 px-2 text-[6px] tracking-[.2em] text-white/38">OBSERVE</button>}<button type="button" aria-label="Accessibility shortcut: Open Nexus archive" onClick={onArchive} className="min-h-9 border border-white/10 bg-black/24 px-2 text-[6px] tracking-[.2em] text-white/34">ARCHIVE</button><button type="button" aria-label="Accessibility shortcut: Open Nexus system terminal" onClick={onSystem} className="min-h-9 border border-white/10 bg-black/24 px-2 text-[6px] tracking-[.2em] text-white/34">SYSTEM</button></div>
+        <button type="button" onClick={() => { markUsed("scanner"); onScanner(); }} className="pointer-events-auto absolute bottom-5 right-5 z-20 min-h-11 border border-white/14 bg-black/36 px-4 text-[7px] tracking-[.25em] text-white/52 sm:bottom-8 sm:right-8">SCANNER / {scanner ? "ACTIVE" : "OFF"}</button>
       </>}
 
       {touch && entered && active && <>
@@ -114,7 +137,7 @@ export function NexusHUD({ entered, active, target, scanner, pointerLocked, tier
           <button aria-label="Move right" className="col-start-3 row-start-2 border border-white/12 bg-black/20 text-[11px] text-white/45" onClick={() => controls.pulseMovement("right")} onPointerDown={() => setMove("right", true)} onPointerUp={() => setMove("right", false)} onPointerCancel={() => setMove("right", false)}>→</button>
         </div>
         <div aria-label="Swipe to look" className="pointer-events-auto absolute bottom-20 right-0 top-24 w-[48%] touch-none" onPointerDown={lookStart} onPointerMove={lookMove} onPointerUp={lookEnd} onPointerCancel={lookEnd} />
-        {target && <button type="button" onClick={onInteract} className="pointer-events-auto absolute bottom-20 right-5 min-h-12 border border-white/22 bg-black/48 px-5 text-[8px] tracking-[.28em] text-white/74">INTERACT</button>}
+        {target && <button type="button" onClick={() => { markUsed("interact"); onInteract(); }} className="pointer-events-auto absolute bottom-20 right-5 min-h-12 border border-white/22 bg-black/48 px-5 text-[8px] tracking-[.28em] text-white/74">INTERACT</button>}
       </>}
 
       {!entered && room === "nexus" && <div className="pointer-events-auto absolute inset-0 flex items-end bg-gradient-to-t from-black/82 via-black/10 to-black/25 p-5 sm:items-center sm:p-10">
@@ -123,12 +146,8 @@ export function NexusHUD({ entered, active, target, scanner, pointerLocked, tier
           <h2 className="mt-5 text-2xl font-medium tracking-[.28em] text-white/92 sm:text-4xl">ARCHIVE NEXUS</h2>
           <div className="mt-7 grid grid-cols-2 gap-5 border-y border-white/10 py-5 text-[7px] leading-5 tracking-[.28em]"><p className="text-white/28">CLEARANCE<br /><span className="text-white/72">OBSERVER</span></p><p className="text-white/28">ARCHIVE STATUS<br /><span className="text-white/72">UNSTABLE</span></p></div>
           {session.returningVisitor && <p className="mt-5 text-[7px] tracking-[.28em] text-white/48">OBSERVER 07 DETECTED / CHECKPOINT RESTORED</p>}
-          <div className="mt-7 flex flex-wrap gap-2">
-            <button type="button" onClick={onEnter} className="min-h-12 border border-white/38 bg-white/[.04] px-5 text-[8px] tracking-[.28em] text-white/88">ENTER NEXUS</button>
-            <button type="button" onClick={onBegin} className="min-h-12 border border-white/18 px-5 text-[8px] tracking-[.25em] text-white/62">BEGIN OBSERVATION</button>
-            <button type="button" onClick={onArchive} className="min-h-12 border border-white/12 px-4 text-[8px] tracking-[.24em] text-white/48">ARCHIVE</button>
-            <button type="button" onClick={onSystem} className="min-h-12 border border-white/12 px-4 text-[8px] tracking-[.24em] text-white/48">SYSTEM</button>
-          </div>
+          <button type="button" onClick={onEnter} className="mt-7 min-h-14 w-full border border-white/42 bg-white/[.055] px-5 text-[9px] tracking-[.34em] text-white/92">ENTER NEXUS</button>
+          <div className="mt-3 flex flex-wrap items-center gap-1 opacity-60"><span className="mr-2 text-[6px] tracking-[.24em] text-white/28">OPTIONAL DIRECT ACCESS</span><button type="button" onClick={onBegin} className="min-h-9 border border-white/10 px-3 text-[6px] tracking-[.21em] text-white/46">OBSERVE</button><button type="button" onClick={onArchive} className="min-h-9 border border-white/10 px-3 text-[6px] tracking-[.21em] text-white/40">ARCHIVE</button><button type="button" onClick={onSystem} className="min-h-9 border border-white/10 px-3 text-[6px] tracking-[.21em] text-white/40">SYSTEM</button></div>
           <p className="mt-6 text-[7px] leading-5 tracking-[.22em] text-white/24">MOVE THROUGH THE HALL. APPROACH ARCHITECTURE TO INTERACT.<br />OBSERVATION PROTOCOL REMAINS AVAILABLE INSIDE THE NEXUS.</p>
         </section>
       </div>}

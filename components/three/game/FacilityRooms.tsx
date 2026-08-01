@@ -17,6 +17,7 @@ type WorldProps = {
   session: RealitySnapshot;
   gateOpening: boolean;
   scanner: boolean;
+  target: NexusInteractionId | null;
 };
 
 function InteractionVolume({ id, position, size }: { id: NexusInteractionId; position: [number, number, number]; size: [number, number, number] }) {
@@ -160,9 +161,9 @@ function MaintenanceSpine({ progress, reducedMotion, scanner, mutations }: { pro
   </Chamber>;
 }
 
-export function ArchiveFacility({ room, progress, reducedMotion, discoveredCount, session, gateOpening, scanner }: WorldProps) {
+export function ArchiveFacility({ room, progress, reducedMotion, discoveredCount, session, gateOpening, scanner, target }: WorldProps) {
   const mutations = useMemo(() => resolveFacilityMutations(progress.consequences), [progress.consequences]);
-  if (room === "nexus") return <ArchiveNexus reducedMotion={reducedMotion} discoveredCount={discoveredCount} session={session} gateOpening={gateOpening} progress={progress} />;
+  if (room === "nexus") return <ArchiveNexus reducedMotion={reducedMotion} discoveredCount={discoveredCount} session={session} gateOpening={gateOpening} progress={progress} target={target} />;
   if (room === "record-vault") return <RecordVault reducedMotion={reducedMotion} progress={progress} session={session} mutations={mutations} />;
   if (room === "signal-room") return <SignalRoom reducedMotion={reducedMotion} progress={progress} session={session} mutations={mutations} />;
   if (room === "dead-sector") return <DeadSector reducedMotion={reducedMotion} progress={progress} mutations={mutations} />;

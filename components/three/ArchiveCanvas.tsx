@@ -31,6 +31,7 @@ type ArchiveCanvasProps = {
   facilityRoom: FacilityRoom;
   facilityProgress: FacilityProgress;
   facilityScanner: boolean;
+  nexusTarget: NexusInteractionId | null;
   onNexusTarget: (target: NexusInteractionId | null) => void;
   onNexusInteract: (target: NexusInteractionId) => void;
   onNexusScanner: () => void;
@@ -57,6 +58,7 @@ export function ArchiveCanvas({
   facilityRoom,
   facilityProgress,
   facilityScanner,
+  nexusTarget,
   onNexusTarget,
   onNexusInteract,
   onNexusScanner,
@@ -102,6 +104,7 @@ export function ArchiveCanvas({
             facilityRoom={facilityRoom}
             facilityProgress={facilityProgress}
             facilityScanner={facilityScanner}
+            nexusTarget={nexusTarget}
             onNexusTarget={onNexusTarget}
             onNexusInteract={onNexusInteract}
             onNexusScanner={onNexusScanner}

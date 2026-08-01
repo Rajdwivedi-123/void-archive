@@ -39,6 +39,7 @@ type ExperienceProps = {
   facilityRoom: FacilityRoom;
   facilityProgress: FacilityProgress;
   facilityScanner: boolean;
+  nexusTarget: NexusInteractionId | null;
   onNexusTarget: (target: NexusInteractionId | null) => void;
   onNexusInteract: (target: NexusInteractionId) => void;
   onNexusScanner: () => void;
@@ -46,7 +47,7 @@ type ExperienceProps = {
   onPointerLock: (locked: boolean) => void;
 };
 
-export function Experience({ isSceneReady, reducedMotion, scrollProgress, inspection, tier, quality, hasFinePointer, onIntroComplete, mode, nexusActive, gateOpening, nexusControls, nexusPose, discoveredCount, session, facilityRoom, facilityProgress, facilityScanner, onNexusTarget, onNexusInteract, onNexusScanner, onNexusPose, onPointerLock }: ExperienceProps) {
+export function Experience({ isSceneReady, reducedMotion, scrollProgress, inspection, tier, quality, hasFinePointer, onIntroComplete, mode, nexusActive, gateOpening, nexusControls, nexusPose, discoveredCount, session, facilityRoom, facilityProgress, facilityScanner, nexusTarget, onNexusTarget, onNexusInteract, onNexusScanner, onNexusPose, onPointerLock }: ExperienceProps) {
   const [introComplete, setIntroComplete] = useState(false);
   const observation = mode === "observation";
 
@@ -68,7 +69,7 @@ export function Experience({ isSceneReady, reducedMotion, scrollProgress, inspec
         <Environment />
         <IntroCameraSequence key="observation-intro" isSceneReady={isSceneReady} reducedMotion={reducedMotion} onIntroComplete={() => { setIntroComplete(true); onIntroComplete(); }} />
       </> : <>
-        <ArchiveFacility room={facilityRoom} progress={facilityProgress} reducedMotion={reducedMotion} discoveredCount={discoveredCount} session={session} gateOpening={gateOpening} scanner={facilityScanner} />
+        <ArchiveFacility room={facilityRoom} progress={facilityProgress} reducedMotion={reducedMotion} discoveredCount={discoveredCount} session={session} gateOpening={gateOpening} scanner={facilityScanner} target={nexusTarget} />
         <FirstPersonController active={nexusActive} tier={tier} reducedMotion={reducedMotion} controls={nexusControls} initialPose={nexusPose} room={facilityRoom} onTarget={onNexusTarget} onInteract={onNexusInteract} onScannerToggle={onNexusScanner} onPose={onNexusPose} onPointerLock={onPointerLock} />
       </>}
       <PostProcessing tier={tier} reducedMotion={reducedMotion} />
