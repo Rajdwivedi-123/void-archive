@@ -18,6 +18,7 @@ export function createSession(): RealitySession {
     recordsOpened: [], revisits: {}, inspectionMs: {}, controlCounts: {}, visitOrder: [],
     archiveViews: 0, connectionViews: 0, pointerMotion: 0, totalInteractions: 0,
     realityFreezeSeen: false, n07Route: null,
+    facilityTraits: { record: 0, signal: 0, spatial: 0, intervention: 0, witness: 0 }, facilityRooms: [], facilityClues: [],
   };
 }
 
@@ -37,6 +38,9 @@ export function loadSession(): RealitySession {
       recordsOpened: Array.isArray(saved.recordsOpened) ? saved.recordsOpened.slice(-36) : [],
       visitOrder: Array.isArray(saved.visitOrder) ? saved.visitOrder.slice(-18) : [],
       revisits: saved.revisits ?? {}, inspectionMs: saved.inspectionMs ?? {}, controlCounts: saved.controlCounts ?? {},
+      facilityTraits: { ...fallback.facilityTraits, ...(saved.facilityTraits ?? {}) },
+      facilityRooms: Array.isArray(saved.facilityRooms) ? saved.facilityRooms.slice(-12) : [],
+      facilityClues: Array.isArray(saved.facilityClues) ? saved.facilityClues.slice(-12) : [],
     };
   } catch { return fallback; }
 }
@@ -67,6 +71,11 @@ function scoresFor(session: RealitySession): AffinityScores {
     spatialAffinity: session.voidProbeCount * .7 + (session.inspectionMs["005"] ?? 0) / 9000 + session.connectionViews * .35,
     mnemonicAffinity: session.memoryRecallDepth * 3 + (session.inspectionMs["006"] ?? 0) / 9000,
   };
+  scores.mnemonicAffinity += session.facilityTraits.record * .42 + session.facilityTraits.witness * .16;
+  scores.temporalAffinity += session.facilityTraits.signal * .36;
+  scores.neuralAffinity += session.facilityTraits.signal * .18 + session.facilityTraits.intervention * .22;
+  scores.spatialAffinity += session.facilityTraits.spatial * .48;
+  scores.gravityAffinity += session.facilityTraits.intervention * .14;
   Object.entries(session.revisits).forEach(([id, count]) => { scores[affinityById[id as ArtifactId]] += count ?? 0; });
   return scores;
 }

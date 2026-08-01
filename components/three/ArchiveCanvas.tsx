@@ -8,7 +8,7 @@ import * as THREE from "three";
 import { WebGLFallback } from "../ui/WebGLFallback";
 import type { InspectionControlRef } from "@/artifacts/inspection";
 import type { GraphicsQuality } from "@/hooks/useGraphicsQuality";
-import type { ExperienceMode, NexusInteractionId, PlayerPose } from "@/game/gameTypes";
+import type { ExperienceMode, FacilityProgress, FacilityRoom, NexusInteractionId, PlayerPose } from "@/game/gameTypes";
 import type { NexusControlStore } from "@/game/NexusControlStore";
 import type { RealitySnapshot } from "@/reality/realityTypes";
 
@@ -28,6 +28,9 @@ type ArchiveCanvasProps = {
   nexusPose: PlayerPose;
   discoveredCount: number;
   session: RealitySnapshot;
+  facilityRoom: FacilityRoom;
+  facilityProgress: FacilityProgress;
+  facilityScanner: boolean;
   onNexusTarget: (target: NexusInteractionId | null) => void;
   onNexusInteract: (target: NexusInteractionId) => void;
   onNexusScanner: () => void;
@@ -51,6 +54,9 @@ export function ArchiveCanvas({
   nexusPose,
   discoveredCount,
   session,
+  facilityRoom,
+  facilityProgress,
+  facilityScanner,
   onNexusTarget,
   onNexusInteract,
   onNexusScanner,
@@ -93,6 +99,9 @@ export function ArchiveCanvas({
             nexusPose={nexusPose}
             discoveredCount={discoveredCount}
             session={session}
+            facilityRoom={facilityRoom}
+            facilityProgress={facilityProgress}
+            facilityScanner={facilityScanner}
             onNexusTarget={onNexusTarget}
             onNexusInteract={onNexusInteract}
             onNexusScanner={onNexusScanner}

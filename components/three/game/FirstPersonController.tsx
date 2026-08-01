@@ -4,8 +4,9 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import type { DeviceTier } from "@/hooks/useDeviceProfile";
-import type { NexusInteractionId, PlayerPose } from "@/game/gameTypes";
+import type { FacilityRoom, NexusInteractionId, PlayerPose } from "@/game/gameTypes";
 import type { NexusControlStore } from "@/game/NexusControlStore";
+import { facilityCollision } from "@/game/facilityTopology";
 
 type Props = {
   active: boolean;
@@ -13,6 +14,7 @@ type Props = {
   reducedMotion: boolean;
   controls: NexusControlStore;
   initialPose: PlayerPose;
+  room: FacilityRoom;
   onTarget: (target: NexusInteractionId | null) => void;
   onInteract: (target: NexusInteractionId) => void;
   onScannerToggle: () => void;
@@ -20,16 +22,8 @@ type Props = {
   onPointerLock: (locked: boolean) => void;
 };
 
-const blockers = [
-  { minX: -2.9, maxX: 2.9, minZ: -10.2, maxZ: -4.2 },
-  { minX: -11.7, maxX: -5.1, minZ: -3.7, maxZ: 1.8 },
-  { minX: 6.1, maxX: 11.8, minZ: -2.5, maxZ: 2.9 },
-  { minX: -14.5, maxX: -11.9, minZ: -15.5, maxZ: 9.5 },
-  { minX: 11.9, maxX: 14.5, minZ: -15.5, maxZ: 9.5 },
-];
-
-function blocked(x: number, z: number) {
-  return blockers.some((box) => x > box.minX - .42 && x < box.maxX + .42 && z > box.minZ - .42 && z < box.maxZ + .42);
+function blocked(room: FacilityRoom, x: number, z: number) {
+  return facilityCollision[room].blockers.some((box) => x > box.minX - .42 && x < box.maxX + .42 && z > box.minZ - .42 && z < box.maxZ + .42);
 }
 
 function interactionFrom(object: THREE.Object3D | null): NexusInteractionId | null {
@@ -41,20 +35,21 @@ function interactionFrom(object: THREE.Object3D | null): NexusInteractionId | nu
   return null;
 }
 
-export function FirstPersonController({ active, tier, reducedMotion, controls, initialPose, onTarget, onInteract, onScannerToggle, onPose, onPointerLock }: Props) {
+export function FirstPersonController({ active, tier, reducedMotion, controls, initialPose, room, onTarget, onInteract, onScannerToggle, onPose, onPointerLock }: Props) {
   const { gl, scene } = useThree();
   const velocity = useRef(new THREE.Vector3());
   const yaw = useRef(initialPose.yaw);
   const pitch = useRef(initialPose.pitch);
   const targetRef = useRef<NexusInteractionId | null>(null);
   const activeRef = useRef(active);
-  const initialized = useRef(false);
+  const poseKey = useRef("");
   const poseClock = useRef(0);
   const keys = useRef({ forward: false, backward: false, left: false, right: false, sprint: false });
   const vectorsRef = useRef({ forward: new THREE.Vector3(), right: new THREE.Vector3(), desired: new THREE.Vector3(), next: new THREE.Vector3() });
   const raycasterRef = useRef(new THREE.Raycaster());
 
   useEffect(() => { activeRef.current = active; if (!active) velocity.current.set(0, 0, 0); }, [active]);
+  useEffect(() => { targetRef.current = null; onTarget(null); controls.clear(); }, [controls, onTarget, room]);
 
   useEffect(() => {
     const canvas = gl.domElement;
@@ -98,8 +93,12 @@ export function FirstPersonController({ active, tier, reducedMotion, controls, i
 
   useFrame((state, delta) => {
     if (!active) return;
-    if (!initialized.current) {
-      initialized.current = true;
+    const nextPoseKey = `${room}:${initialPose.position.join(":")}:${initialPose.yaw}:${initialPose.pitch}`;
+    if (poseKey.current !== nextPoseKey) {
+      poseKey.current = nextPoseKey;
+      yaw.current = initialPose.yaw;
+      pitch.current = initialPose.pitch;
+      velocity.current.set(0, 0, 0);
       state.camera.position.set(...initialPose.position);
       state.camera.rotation.set(initialPose.pitch, initialPose.yaw, 0, "YXZ");
       if (state.camera instanceof THREE.PerspectiveCamera) { state.camera.fov = tier === "mobile" ? 54 : 49; state.camera.updateProjectionMatrix(); }
@@ -126,10 +125,11 @@ export function FirstPersonController({ active, tier, reducedMotion, controls, i
     velocity.current.x = THREE.MathUtils.damp(velocity.current.x, vectors.desired.x, moving ? 7 : 9, delta);
     velocity.current.z = THREE.MathUtils.damp(velocity.current.z, vectors.desired.z, moving ? 7 : 9, delta);
     vectors.next.copy(state.camera.position);
-    const nextX = THREE.MathUtils.clamp(vectors.next.x + velocity.current.x * delta, -13.8, 13.8);
-    if (!blocked(nextX, vectors.next.z)) vectors.next.x = nextX;
-    const nextZ = THREE.MathUtils.clamp(vectors.next.z + velocity.current.z * delta, -17.2, 15.5);
-    if (!blocked(vectors.next.x, nextZ)) vectors.next.z = nextZ;
+    const bounds = facilityCollision[room];
+    const nextX = THREE.MathUtils.clamp(vectors.next.x + velocity.current.x * delta, bounds.minX, bounds.maxX);
+    if (!blocked(room, nextX, vectors.next.z)) vectors.next.x = nextX;
+    const nextZ = THREE.MathUtils.clamp(vectors.next.z + velocity.current.z * delta, bounds.minZ, bounds.maxZ);
+    if (!blocked(room, vectors.next.x, nextZ)) vectors.next.z = nextZ;
     vectors.next.y = 1.72;
     state.camera.position.copy(vectors.next);
 

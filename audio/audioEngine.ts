@@ -147,11 +147,16 @@ export class ArchiveAudioEngine {
     const duration = immediate ? .08 : .85;
     const isVoid = scene.artifact === "005" || scene.stage.includes("geometric-isolation");
     const memoryArrival = scene.stage.includes("memory-recovery") || scene.artifact === "006";
+    const recordVault = scene.stage.includes("facility-record-vault");
+    const signalRoom = scene.stage.includes("facility-signal-room");
+    const deadSector = scene.stage.includes("facility-dead-sector");
+    const observationDeck = scene.stage.includes("facility-observation-deck");
+    const maintenance = scene.stage.includes("facility-maintenance-spine");
     const witness = profile.archetype === "witness";
-    const ambience = scene.archiveOpen ? .27 : isVoid ? .008 : memoryArrival ? .46 : witness ? .34 : .4;
+    const ambience = scene.archiveOpen ? .27 : isVoid ? .008 : deadSector ? .095 : observationDeck ? .46 : maintenance ? .31 : signalRoom ? .36 : recordVault ? .3 : memoryArrival ? .46 : witness ? .34 : .4;
     this.ramp(this.ambienceBus.gain, ambience, duration);
     this.ramp(this.artifactBus.gain, isVoid ? .018 : scene.artifact ? (scene.inspecting ? .43 : .34) : .1, duration);
-    this.ramp(this.ambienceFilter.frequency, isVoid ? 105 : scene.artifact === "004" ? 1250 : memoryArrival ? 1800 : 920, duration);
+    this.ramp(this.ambienceFilter.frequency, isVoid ? 105 : deadSector ? 260 : recordVault ? 680 : signalRoom ? 1180 : observationDeck ? 1480 : maintenance ? 520 : scene.artifact === "004" ? 1250 : memoryArrival ? 1800 : 920, duration);
     if (scene.artifact) this.setArtifactVoice(scene.artifact, scene.control);
 
     if (!immediate && this.lastStage && this.lastStage !== scene.stage) {
@@ -159,6 +164,11 @@ export class ArchiveAudioEngine {
       if (scene.stage.includes("memory-recovery")) { this.tone(392, 1.15, .018, .05, .08, "transition"); this.tone(this.affinityFrequency(profile), .7, .006, -.18, .22, "artifact"); }
       if (scene.stage.includes("bio-isolation")) { this.tone(248, .28, .008, -.2, .04, "transition"); if (profile.archetype === "chronologist") this.tone(516, .12, .006, .16, 0, "transition"); }
       if (scene.stage.includes("object-four-arrival") && profile.archetype === "synaptic") { this.tone(211, .13, .006, -.24, 0, "artifact"); this.tone(278, .13, .006, .24, .11, "artifact"); }
+      if (recordVault) this.tone(318, .62, .007, -.32, .06, "transition");
+      if (signalRoom) { this.tone(267, .24, .008, -.18, .04, "transition"); this.tone(401, .31, .006, .2, .18, "transition"); }
+      if (deadSector) this.tone(151, .9, .004, 0, .08, "transition");
+      if (observationDeck) this.tone(206, 1.2, .006, .12, .04, "transition");
+      if (maintenance) this.tone(183, .36, .007, -.12, .05, "transition");
     }
     if (!immediate && profile.n07Route && profile.n07Route !== this.lastRoute) {
       this.tone(267, .46, .006, -.35, .09, "transition");
@@ -203,7 +213,10 @@ export class ArchiveAudioEngine {
       if (!this.active) return;
       const delay = 9000 + Math.random() * 8000;
       this.sparseTimer = window.setTimeout(() => {
-        if (this.active && this.scene?.artifact !== "005" && !this.scene?.freeze) this.tone(151 + Math.random() * 54, 1.6, .004, Math.random() * .8 - .4, 0, "transition");
+        if (this.active && this.scene?.artifact !== "005" && !this.scene?.freeze) {
+          const signal = this.scene?.stage.includes("facility-signal-room");
+          this.tone(signal ? 267 : 151 + Math.random() * 54, signal ? .42 : 1.6, signal ? .006 : .004, Math.random() * .8 - .4, 0, "transition");
+        }
         schedule();
       }, delay);
     };

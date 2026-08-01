@@ -14,10 +14,10 @@ import { ArchiveJourney } from "./journey/ArchiveJourney";
 import { JourneyCamera } from "./journey/JourneyCamera";
 import type { InspectionControlRef } from "@/artifacts/inspection";
 import type { GraphicsQuality } from "@/hooks/useGraphicsQuality";
-import type { ExperienceMode, NexusInteractionId, PlayerPose } from "@/game/gameTypes";
+import type { ExperienceMode, FacilityProgress, FacilityRoom, NexusInteractionId, PlayerPose } from "@/game/gameTypes";
 import type { NexusControlStore } from "@/game/NexusControlStore";
 import type { RealitySnapshot } from "@/reality/realityTypes";
-import { ArchiveNexus } from "./game/ArchiveNexus";
+import { ArchiveFacility } from "./game/FacilityRooms";
 import { FirstPersonController } from "./game/FirstPersonController";
 
 type ExperienceProps = {
@@ -36,6 +36,9 @@ type ExperienceProps = {
   nexusPose: PlayerPose;
   discoveredCount: number;
   session: RealitySnapshot;
+  facilityRoom: FacilityRoom;
+  facilityProgress: FacilityProgress;
+  facilityScanner: boolean;
   onNexusTarget: (target: NexusInteractionId | null) => void;
   onNexusInteract: (target: NexusInteractionId) => void;
   onNexusScanner: () => void;
@@ -43,7 +46,7 @@ type ExperienceProps = {
   onPointerLock: (locked: boolean) => void;
 };
 
-export function Experience({ isSceneReady, reducedMotion, scrollProgress, inspection, tier, quality, hasFinePointer, onIntroComplete, mode, nexusActive, gateOpening, nexusControls, nexusPose, discoveredCount, session, onNexusTarget, onNexusInteract, onNexusScanner, onNexusPose, onPointerLock }: ExperienceProps) {
+export function Experience({ isSceneReady, reducedMotion, scrollProgress, inspection, tier, quality, hasFinePointer, onIntroComplete, mode, nexusActive, gateOpening, nexusControls, nexusPose, discoveredCount, session, facilityRoom, facilityProgress, facilityScanner, onNexusTarget, onNexusInteract, onNexusScanner, onNexusPose, onPointerLock }: ExperienceProps) {
   const [introComplete, setIntroComplete] = useState(false);
   const observation = mode === "observation";
 
@@ -65,8 +68,8 @@ export function Experience({ isSceneReady, reducedMotion, scrollProgress, inspec
         <Environment />
         <IntroCameraSequence key="observation-intro" isSceneReady={isSceneReady} reducedMotion={reducedMotion} onIntroComplete={() => { setIntroComplete(true); onIntroComplete(); }} />
       </> : <>
-        <ArchiveNexus reducedMotion={reducedMotion} discoveredCount={discoveredCount} session={session} gateOpening={gateOpening} />
-        <FirstPersonController active={nexusActive} tier={tier} reducedMotion={reducedMotion} controls={nexusControls} initialPose={nexusPose} onTarget={onNexusTarget} onInteract={onNexusInteract} onScannerToggle={onNexusScanner} onPose={onNexusPose} onPointerLock={onPointerLock} />
+        <ArchiveFacility room={facilityRoom} progress={facilityProgress} reducedMotion={reducedMotion} discoveredCount={discoveredCount} session={session} gateOpening={gateOpening} scanner={facilityScanner} />
+        <FirstPersonController active={nexusActive} tier={tier} reducedMotion={reducedMotion} controls={nexusControls} initialPose={nexusPose} room={facilityRoom} onTarget={onNexusTarget} onInteract={onNexusInteract} onScannerToggle={onNexusScanner} onPose={onNexusPose} onPointerLock={onPointerLock} />
       </>}
       <PostProcessing tier={tier} reducedMotion={reducedMotion} />
     </Suspense>

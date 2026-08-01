@@ -117,6 +117,15 @@ function makeStore(): RealityStore {
       };
       publish({ ...baseline, ...profiles[profile] });
     },
+    recordFacilityEvent: (event, room, clue) => {
+      const facilityRooms = session.facilityRooms.includes(room) ? session.facilityRooms : [...session.facilityRooms, room].slice(-12);
+      const facilityClues = !clue || session.facilityClues.includes(clue) ? session.facilityClues : [...session.facilityClues, clue].slice(-12);
+      patch({
+        facilityTraits: { ...session.facilityTraits, [event]: (session.facilityTraits[event] ?? 0) + 1 },
+        facilityRooms, facilityClues, totalInteractions: session.totalInteractions + 1,
+        n07Route: session.n07Route ?? (event === "signal" ? "temporal" : event === "spatial" ? "void" : event === "record" ? "archive" : null),
+      });
+    },
   };
 }
 

@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import type { NexusInteractionId } from "@/game/gameTypes";
+import type { FacilityProgress, FacilityRoom, NexusInteractionId } from "@/game/gameTypes";
 import type { NexusControlStore } from "@/game/NexusControlStore";
 import type { DeviceTier } from "@/hooks/useDeviceProfile";
 import type { RealitySnapshot } from "@/reality/realityTypes";
@@ -14,6 +14,26 @@ const interactionCopy: Record<NexusInteractionId, { title: string; action: strin
   "scanner-array": { title: "MEASUREMENT ARRAY", action: "TOGGLE SCANNER", measure: "COORDINATE RETURN / STABLE" },
   "restricted-sector": { title: "N-06 CONTAINMENT", action: "VERIFY ACCESS", measure: "ACCESS / RESTRICTED" },
   "event-seven": { title: "UNINDEXED STRUCTURE", action: "MEASURE", measure: "ACTIVE SECTOR COUNT / 7" },
+  "route-record-vault": { title: "RECORD ACCESS", action: "ENTER VAULT", measure: "ROUTE / OPTIONAL" },
+  "route-signal-room": { title: "SIGNAL ANALYSIS", action: "ENTER SIGNAL ROOM", measure: "SIGNAL 7A / UNRESOLVED" },
+  "route-dead-sector": { title: "UNINDEXED PASSAGE", action: "ENTER DEAD SECTOR", measure: "LOCATION / NOT PRESENT" },
+  "route-observation-deck": { title: "ARCHIVE OVERLOOK", action: "ENTER OBSERVATION DECK", measure: "VERTICAL RETURN / UNBOUNDED" },
+  "route-maintenance-spine": { title: "LOWER UTILITY ROUTE", action: "ENTER MAINTENANCE SPINE", measure: "ROUTE / CONDITIONAL" },
+  "return-nexus": { title: "NEXUS LINK", action: "RETURN TO NEXUS", measure: "ROUTE / STABLE" },
+  "return-record-vault": { title: "RECORD ACCESS", action: "RETURN TO VAULT", measure: "ROUTE / STABLE" },
+  "return-signal-room": { title: "SIGNAL ACCESS", action: "RETURN TO SIGNAL ROOM", measure: "ROUTE / STABLE" },
+  "record-search": { title: "VAULT SEARCH TERMINAL", action: "SEARCH RECORDS", measure: "INDEX DEPTH / CONDITIONAL" },
+  "signal-analysis": { title: "SIGNAL 7A RECEIVER", action: "ANALYZE SIGNAL", measure: "ORIGIN / INSIDE FACILITY" },
+  "dead-sector-scan": { title: "EMPTY CONTAINMENT", action: "SCAN CHAMBER", measure: "CONTAINMENT SIGNATURE / ACTIVE" },
+  "observation-instrument": { title: "NONLOCAL OBSERVATION", action: "USE INSTRUMENT", measure: "VISIBLE STRUCTURE / UNINDEXED" },
+  "shortcut-control": { title: "ROUTE CONTROL", action: "UNLOCK SHORTCUT", measure: "NEXUS-SIGNAL / DORMANT" },
+  "hidden-passage": { title: "WALL DEPTH MISMATCH", action: "VERIFY PASSAGE", measure: "PHYSICAL DEPTH / +4.3 M" },
+  "n07-gate": { title: "N-07", action: "VERIFY ACCESS", measure: "LOCATION / NONLOCAL" },
+  "corridor-marker": { title: "ROUTE IDENTIFIER", action: "OBSERVE LABEL", measure: "LABEL RETURN / INCONSISTENT" },
+};
+
+const roomNames: Record<FacilityRoom, string> = {
+  nexus: "ARCHIVE NEXUS", "record-vault": "RECORD VAULT", "signal-room": "SIGNAL ROOM", "dead-sector": "DEAD SECTOR", "observation-deck": "OBSERVATION DECK", "maintenance-spine": "MAINTENANCE SPINE",
 };
 
 type NexusHudProps = {
@@ -28,6 +48,9 @@ type NexusHudProps = {
   session: RealitySnapshot;
   tutorialVisible: boolean;
   notice: string | null;
+  room: FacilityRoom;
+  progress: FacilityProgress;
+  objective: string;
   onEnter: () => void;
   onBegin: () => void;
   onArchive: () => void;
@@ -36,7 +59,7 @@ type NexusHudProps = {
   onScanner: () => void;
 };
 
-export function NexusHUD({ entered, active, target, scanner, pointerLocked, tier, hasFinePointer, controls, session, tutorialVisible, notice, onEnter, onBegin, onArchive, onSystem, onInteract, onScanner }: NexusHudProps) {
+export function NexusHUD({ entered, active, target, scanner, pointerLocked, tier, hasFinePointer, controls, session, tutorialVisible, notice, room, progress, objective, onEnter, onBegin, onArchive, onSystem, onInteract, onScanner }: NexusHudProps) {
   const look = useRef<{ x: number; y: number } | null>(null);
   const touch = tier !== "desktop" || !hasFinePointer;
   const setMove = (key: "forward" | "backward" | "left" | "right", value: boolean) => controls.setMovement(key, value);
@@ -53,8 +76,8 @@ export function NexusHUD({ entered, active, target, scanner, pointerLocked, tier
       <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-5 sm:p-8 lg:p-10">
         <div className="border-l border-white/24 pl-4">
           <p className="text-[8px] tracking-[.46em] text-white/38">VOID ARCHIVE</p>
-          <p className="mt-2 text-[11px] tracking-[.32em] text-white/82">ARCHIVE NEXUS</p>
-          <p className="mt-3 text-[7px] tracking-[.26em] text-white/34">CLEARANCE / OBSERVER<br />ARCHIVE STATUS / UNSTABLE</p>
+          <p className="mt-2 text-[11px] tracking-[.32em] text-white/82">{roomNames[room]}</p>
+          <p className="mt-3 max-w-64 text-[7px] tracking-[.26em] text-white/34">DIRECTIVE / {objective}<br />ROOM INDEX / {String(progress.discoveredRooms.length).padStart(2, "0")}</p>
         </div>
         <div className="text-right text-[7px] leading-5 tracking-[.25em] text-white/32">
           <p>{session.returningVisitor ? "OBSERVER 07 DETECTED" : "OBSERVER / UNREGISTERED"}</p>
@@ -76,7 +99,7 @@ export function NexusHUD({ entered, active, target, scanner, pointerLocked, tier
         {notice && <div className="pointer-events-none absolute bottom-28 left-1/2 -translate-x-1/2 border-l border-white/25 bg-black/45 px-4 py-3 text-center text-[7px] tracking-[.26em] text-white/58 backdrop-blur-sm">{notice}</div>}
         {tutorialVisible && !touch && <div className="pointer-events-none absolute bottom-9 left-9 text-[7px] leading-6 tracking-[.28em] text-white/34">WASD / MOVE<br />MOUSE / LOOK<br />E / INTERACT<br />Q / SCANNER<br />ESC / RELEASE</div>}
         {!touch && !pointerLocked && active && <p className="pointer-events-none absolute bottom-9 left-1/2 -translate-x-1/2 text-[7px] tracking-[.3em] text-white/34">CLICK WORLD / CAPTURE MOUSE</p>}
-        <div className="pointer-events-auto absolute right-5 top-28 z-20 flex gap-2 sm:right-8 sm:top-32"><button type="button" aria-label="Begin Observation Protocol" onClick={onBegin} className="min-h-10 border border-white/16 bg-black/32 px-3 text-[7px] tracking-[.22em] text-white/52">OBSERVE</button><button type="button" aria-label="Open Nexus archive" onClick={onArchive} className="min-h-10 border border-white/10 bg-black/28 px-3 text-[7px] tracking-[.22em] text-white/38">ARCHIVE</button><button type="button" aria-label="Open Nexus system terminal" onClick={onSystem} className="min-h-10 border border-white/10 bg-black/28 px-3 text-[7px] tracking-[.22em] text-white/38">SYSTEM</button></div>
+        <div className="pointer-events-auto absolute right-5 top-28 z-20 flex gap-2 sm:right-8 sm:top-32">{room === "nexus" && <button type="button" aria-label="Begin Observation Protocol" onClick={onBegin} className="min-h-10 border border-white/16 bg-black/32 px-3 text-[7px] tracking-[.22em] text-white/52">OBSERVE</button>}<button type="button" aria-label="Open Nexus archive" onClick={onArchive} className="min-h-10 border border-white/10 bg-black/28 px-3 text-[7px] tracking-[.22em] text-white/38">ARCHIVE</button><button type="button" aria-label="Open Nexus system terminal" onClick={onSystem} className="min-h-10 border border-white/10 bg-black/28 px-3 text-[7px] tracking-[.22em] text-white/38">SYSTEM</button></div>
         <button type="button" onClick={onScanner} className="pointer-events-auto absolute bottom-5 right-5 z-20 min-h-11 border border-white/14 bg-black/36 px-4 text-[7px] tracking-[.25em] text-white/52 sm:bottom-8 sm:right-8">SCANNER / {scanner ? "ACTIVE" : "OFF"}</button>
       </>}
 
@@ -91,7 +114,7 @@ export function NexusHUD({ entered, active, target, scanner, pointerLocked, tier
         {target && <button type="button" onClick={onInteract} className="pointer-events-auto absolute bottom-20 right-5 min-h-12 border border-white/22 bg-black/48 px-5 text-[8px] tracking-[.28em] text-white/74">INTERACT</button>}
       </>}
 
-      {!entered && <div className="pointer-events-auto absolute inset-0 flex items-end bg-gradient-to-t from-black/82 via-black/10 to-black/25 p-5 sm:items-center sm:p-10">
+      {!entered && room === "nexus" && <div className="pointer-events-auto absolute inset-0 flex items-end bg-gradient-to-t from-black/82 via-black/10 to-black/25 p-5 sm:items-center sm:p-10">
         <section className="w-full max-w-xl border-l border-white/28 bg-black/38 px-6 py-7 backdrop-blur-[3px] sm:px-9 sm:py-9">
           <p className="text-[8px] tracking-[.5em] text-white/36">VOID ARCHIVE</p>
           <h2 className="mt-5 text-2xl font-medium tracking-[.28em] text-white/92 sm:text-4xl">ARCHIVE NEXUS</h2>
@@ -110,7 +133,7 @@ export function NexusHUD({ entered, active, target, scanner, pointerLocked, tier
   );
 }
 
-export function NexusTerminal({ open, session, onClose, onArchive }: { open: boolean; session: RealitySnapshot; onClose: () => void; onArchive: () => void }) {
+export function NexusTerminal({ open, session, progress, onClose, onArchive }: { open: boolean; session: RealitySnapshot; progress: FacilityProgress; onClose: () => void; onArchive: () => void }) {
   const [tab, setTab] = useState<"status" | "index" | "map" | "session">("status");
   if (!open) return null;
   return (
@@ -121,8 +144,8 @@ export function NexusTerminal({ open, session, onClose, onArchive }: { open: boo
         <div className="min-h-72 py-7">
           {tab === "status" && <div className="grid gap-6 sm:grid-cols-3"><TerminalMetric label="ARCHIVE STATUS" value="UNSTABLE" /><TerminalMetric label="ACTIVE SECTOR COUNT" value="7" muted /><TerminalMetric label="INDEXED SECTORS" value="01–06" /><TerminalMetric label="OBSERVATION" value={session.archiveUnlocked ? "COMPLETE" : "AVAILABLE"} /><TerminalMetric label="NEXUS RETURN" value="STABLE" /><TerminalMetric label="LOCAL GEOMETRY" value={session.voidProbeCount ? "INCOMPLETE" : "NOMINAL"} /></div>}
           {tab === "index" && <div className="space-y-3">{[1,2,3,4,5,6].map((index) => <div key={index} className="flex justify-between border-b border-white/8 py-3 text-[8px] tracking-[.25em]"><span className="text-white/56">N-{String(index).padStart(2,"0")}</span><span className={index === 1 || index <= session.visitOrder.length ? "text-white/62" : "text-white/22"}>{index === 1 ? "OBSERVATION ACCESS" : index <= session.visitOrder.length ? "OBSERVED / RESTRICTED" : "UNRESOLVED"}</span></div>)}</div>}
-          {tab === "map" && <div><p className="max-w-xl text-[9px] leading-6 tracking-[.22em] text-white/44">PHYSICAL NEXUS INSTALLATION AND ARCHIVE SECTOR MODEL SHARE SIX REGISTERED COORDINATES. LOCAL SYSTEM STATUS REPORTS ONE ADDITIONAL ACTIVE RETURN.</p><button type="button" onClick={onArchive} className="mt-7 min-h-11 border border-white/20 px-5 text-[8px] tracking-[.27em] text-white/68">OPEN DETAILED MAP</button></div>}
-          {tab === "session" && <div className="grid gap-6 sm:grid-cols-2"><TerminalMetric label="OBSERVER" value={session.returningVisitor ? "SUBJECT 07" : "UNREGISTERED"} /><TerminalMetric label="PROFILE" value={session.archetype.toUpperCase()} /><TerminalMetric label="DISCOVERIES" value={`${session.visitOrder.length} / 6`} /><TerminalMetric label="EVENT 13" value={session.event13Discovered ? "RECORDED" : "UNRESOLVED"} /></div>}
+          {tab === "map" && <div><p className="max-w-xl text-[9px] leading-6 tracking-[.22em] text-white/44">PHYSICAL NEXUS INSTALLATION AND ARCHIVE SECTOR MODEL SHARE SIX REGISTERED COORDINATES. FACILITY ROUTES ARE APPENDED ONLY AFTER PHYSICAL DISCOVERY.</p><div className="mt-6 grid gap-3 sm:grid-cols-2">{progress.discoveredRooms.map((room) => <p key={room} className="border-l border-white/12 pl-3 text-[7px] tracking-[.23em] text-white/48">{room.toUpperCase().replaceAll("-", " ")}</p>)}{progress.n07Clues.length > 0 && <p className="border-l border-white/18 pl-3 text-[7px] tracking-[.23em] text-white/32">N-07 / LOCATION UNRESOLVED</p>}</div><p className="mt-5 text-[7px] tracking-[.22em] text-white/24">SHORTCUTS / {progress.unlockedShortcuts.length} · UNRESOLVED ROUTES / {progress.hiddenPassageDiscovered ? 1 : 2}</p><button type="button" onClick={onArchive} className="mt-7 min-h-11 border border-white/20 px-5 text-[8px] tracking-[.27em] text-white/68">OPEN DETAILED MAP</button></div>}
+          {tab === "session" && <div className="grid gap-6 sm:grid-cols-2"><TerminalMetric label="OBSERVER" value={session.returningVisitor ? "SUBJECT 07" : "UNREGISTERED"} /><TerminalMetric label="PROFILE" value={session.archetype.toUpperCase()} /><TerminalMetric label="DISCOVERIES" value={`${session.visitOrder.length} / 6 · ${progress.discoveredRooms.length} ROOMS`} /><TerminalMetric label="EVENT 13" value={session.event13Discovered ? "RECORDED" : "UNRESOLVED"} /><TerminalMetric label="N-07 CLUE ROUTES" value={String(progress.n07Clues.length)} /><TerminalMetric label="SIGNAL 7A" value={progress.signalResult ? "ISOLATED" : "UNRESOLVED"} /></div>}
         </div>
       </div>
     </section>

@@ -1,6 +1,43 @@
-import { defaultNexusPose, type NexusCheckpoint, type PlayerPose } from "./gameTypes";
+import { defaultNexusPose, type FacilityProgress, type FacilityRoom, type NexusCheckpoint, type PlayerPose } from "./gameTypes";
+import { facilityPoses, safeFacilityPose } from "./facilityTopology";
 
 const CHECKPOINT_KEY = "void-archive.game.v1";
+const FACILITY_KEY = "void-archive.game.v2";
+
+const facilityRooms: FacilityRoom[] = ["nexus", "record-vault", "signal-room", "dead-sector", "observation-deck", "maintenance-spine"];
+
+export function createFacilityProgress(): FacilityProgress {
+  return {
+    version: 2, location: "nexus", pose: facilityPoses.nexus, discoveredRooms: ["nexus"], unlockedShortcuts: [], completedInteractions: [], n07Clues: [], recordSearches: [], signalResult: null,
+    hiddenPassageDiscovered: false, deadSectorDiscovered: false, observationInstrumentUsed: false, impossibleCorridorSeen: false,
+  };
+}
+
+export function loadFacilityProgress(): FacilityProgress {
+  const fallback = createFacilityProgress();
+  try {
+    const saved = JSON.parse(localStorage.getItem(FACILITY_KEY) ?? "null") as Partial<FacilityProgress> | null;
+    if (!saved || saved.version !== 2) {
+      const legacy = loadNexusCheckpoint();
+      return { ...fallback, pose: safeFacilityPose("nexus", legacy.pose) };
+    }
+    const location = facilityRooms.includes(saved.location as FacilityRoom) ? saved.location as FacilityRoom : "nexus";
+    return {
+      ...fallback, ...saved, version: 2, location, pose: safeFacilityPose(location, saved.pose),
+      discoveredRooms: facilityRooms.filter((room) => saved.discoveredRooms?.includes(room)).concat("nexus").filter((room, index, all) => all.indexOf(room) === index),
+      unlockedShortcuts: Array.isArray(saved.unlockedShortcuts) ? saved.unlockedShortcuts.slice(-8) : [],
+      completedInteractions: Array.isArray(saved.completedInteractions) ? saved.completedInteractions.slice(-24) : [],
+      n07Clues: Array.isArray(saved.n07Clues) ? saved.n07Clues.slice(-8) as FacilityProgress["n07Clues"] : [],
+      recordSearches: Array.isArray(saved.recordSearches) ? saved.recordSearches.slice(-12) : [],
+    };
+  } catch { return fallback; }
+}
+
+export function saveFacilityProgress(progress: FacilityProgress) {
+  try { localStorage.setItem(FACILITY_KEY, JSON.stringify({ ...progress, pose: safeFacilityPose(progress.location, progress.pose) })); } catch { /* optional persistence */ }
+}
+
+export function clearFacilityProgress() { try { localStorage.removeItem(FACILITY_KEY); } catch { /* optional persistence */ } }
 
 export function loadNexusCheckpoint(): NexusCheckpoint {
   const fallback: NexusCheckpoint = { version: 1, checkpoint: "NEXUS", pose: defaultNexusPose };

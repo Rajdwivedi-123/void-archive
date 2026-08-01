@@ -24,8 +24,10 @@ import { AudioProvider } from "@/audio/AudioProvider";
 import { useArchiveAudio } from "@/audio/useArchiveAudio";
 import { SoundControl } from "./SoundControl";
 import { NexusHUD, NexusTerminal, NexusTransition } from "./NexusInterface";
-import { defaultNexusPose, type ExperienceMode, type NexusInteractionId, type PlayerPose } from "@/game/gameTypes";
-import { loadNexusCheckpoint, saveNexusCheckpoint } from "@/game/checkpoint";
+import { FacilityTransition, ObservationInstrument, RecordSearch, SignalAnalysis } from "./FacilityInterface";
+import { defaultNexusPose, type ExperienceMode, type FacilityClue, type FacilityProgress, type FacilityRoom, type NexusInteractionId, type PlayerPose } from "@/game/gameTypes";
+import { clearFacilityProgress, createFacilityProgress, loadFacilityProgress, saveFacilityProgress, saveNexusCheckpoint } from "@/game/checkpoint";
+import { facilityPoses } from "@/game/facilityTopology";
 import { NexusControlStore } from "@/game/NexusControlStore";
 
 function stageArtifact(stage: string): ArtifactId | null {
@@ -63,6 +65,11 @@ function VoidArchiveExperience() {
   const [tutorialVisible, setTutorialVisible] = useState(true);
   const [nexusNotice, setNexusNotice] = useState<string | null>(null);
   const [returningToNexus, setReturningToNexus] = useState(false);
+  const [facilityProgress, setFacilityProgress] = useState<FacilityProgress>(createFacilityProgress);
+  const [facilityRoom, setFacilityRoom] = useState<FacilityRoom>("nexus");
+  const [routeTransition, setRouteTransition] = useState(false);
+  const [routeDestination, setRouteDestination] = useState<FacilityRoom>("nexus");
+  const [facilityModal, setFacilityModal] = useState<"record" | "signal" | "instrument" | null>(null);
   const [nexusControls] = useState(() => new NexusControlStore());
   const transitionTimerRef = useRef<number | null>(null);
   const noticeTimerRef = useRef<number | null>(null);
@@ -82,19 +89,29 @@ function VoidArchiveExperience() {
   const postJourney = archiveUnlocked || realitySession.archiveUnlocked || journeyStage === "session-complete";
   const realityArtifact = inspectedId ?? (archiveOpen ? selectedId : experienceMode === "observation" ? stageArtifact(journeyStage) : null);
   const nexusDiscoveredCount = Math.max(discoveredCount, new Set(realitySession.visitOrder).size, postJourney ? 6 : 1);
-  const nexusActive = experienceMode === "nexus" && nexusEntered && !archiveOpen && !terminalOpen && !inspectedArtifact;
+  const nexusActive = experienceMode === "nexus" && nexusEntered && !archiveOpen && !terminalOpen && !inspectedArtifact && !facilityModal && !routeTransition;
+  const facilityObjective = facilityProgress.signalResult ? "VERIFY NONLOCAL ROUTE" : facilityProgress.recordSearches.length ? "LOCATE SIGNAL SOURCE" : "VERIFY ANOMALY NETWORK";
 
   useLenisScroll(reducedMotion || experienceMode !== "observation" || archiveOpen || Boolean(inspectedArtifact));
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
-      const checkpoint = loadNexusCheckpoint();
+      const checkpoint = loadFacilityProgress();
       const forceIntro = new URLSearchParams(window.location.search).has("nexus-intro");
+      const room = forceIntro ? "nexus" : checkpoint.location;
+      setFacilityProgress(checkpoint);
+      setFacilityRoom(room);
       setNexusPose(forceIntro ? defaultNexusPose : checkpoint.pose);
-      if (checkpoint.checkpoint === "OBSERVATION_COMPLETE" && !forceIntro) setNexusEntered(true);
+      if (!forceIntro && (room !== "nexus" || checkpoint.discoveredRooms.length > 1)) setNexusEntered(true);
     });
     return () => window.cancelAnimationFrame(frame);
   }, []);
+
+  useEffect(() => {
+    if (!realitySession.returningVisitor || new URLSearchParams(window.location.search).has("nexus-intro")) return;
+    const frame = window.requestAnimationFrame(() => setNexusEntered(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, [realitySession.returningVisitor]);
 
   useEffect(() => {
     const timer = window.setTimeout(
@@ -130,8 +147,8 @@ function VoidArchiveExperience() {
   }, [archiveOpen, experienceMode, inspectedId, reality, realityArtifact, reducedMotion, terminalOpen, tier]);
 
   useEffect(() => {
-    audio.syncScene({ stage: experienceMode === "observation" ? journeyStage : "archive-nexus", artifact: realityArtifact, inspecting: Boolean(inspectedId), control: inspectionPrimary, scanner: scannerActive || nexusScanner, archiveOpen: archiveOpen || terminalOpen, freeze: freezeActive, mobile: tier === "mobile" });
-  }, [archiveOpen, audio, experienceMode, freezeActive, inspectedId, inspectionPrimary, journeyStage, nexusScanner, realityArtifact, scannerActive, terminalOpen, tier]);
+    audio.syncScene({ stage: experienceMode === "observation" ? journeyStage : `facility-${facilityRoom}`, artifact: realityArtifact, inspecting: Boolean(inspectedId), control: inspectionPrimary, scanner: scannerActive || nexusScanner, archiveOpen: archiveOpen || terminalOpen || Boolean(facilityModal), freeze: freezeActive, mobile: tier === "mobile" });
+  }, [archiveOpen, audio, experienceMode, facilityModal, facilityRoom, freezeActive, inspectedId, inspectionPrimary, journeyStage, nexusScanner, realityArtifact, scannerActive, terminalOpen, tier]);
 
   useEffect(() => {
     if (!inspectedId) return;
@@ -157,7 +174,7 @@ function VoidArchiveExperience() {
   }, [experienceMode, journeyStage, reality, realitySession.realityFreezeSeen, reducedMotion]);
 
   useEffect(() => {
-    if (!archiveOpen && !inspectedArtifact && !terminalOpen && experienceMode !== "nexus") return;
+    if (!archiveOpen && !inspectedArtifact && !terminalOpen && !facilityModal && experienceMode !== "nexus") return;
     const previousHtmlOverflow = document.documentElement.style.overflow;
     const previousBodyOverflow = document.body.style.overflow;
     document.documentElement.style.overflow = "hidden";
@@ -166,7 +183,7 @@ function VoidArchiveExperience() {
       document.documentElement.style.overflow = previousHtmlOverflow;
       document.body.style.overflow = previousBodyOverflow;
     };
-  }, [archiveOpen, experienceMode, inspectedArtifact, terminalOpen]);
+  }, [archiveOpen, experienceMode, facilityModal, inspectedArtifact, terminalOpen]);
 
   useEffect(() => {
     if (!inspectedArtifact) return;
@@ -247,19 +264,52 @@ function VoidArchiveExperience() {
     if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
     noticeTimerRef.current = window.setTimeout(() => setNexusNotice(null), 2600);
   }, []);
+  const updateFacility = useCallback((update: (current: FacilityProgress) => FacilityProgress) => {
+    setFacilityProgress((current) => {
+      const next = update(current);
+      saveFacilityProgress(next);
+      return next;
+    });
+  }, []);
+  const travelTo = useCallback((room: FacilityRoom) => {
+    if (routeTransition || experienceMode !== "nexus") return;
+    releasePointer();
+    setFacilityModal(null);
+    setTerminalOpen(false);
+    setArchiveOpen(false);
+    setNexusTarget(null);
+    setRouteDestination(room);
+    setRouteTransition(true);
+    const pose = facilityPoses[room];
+    transitionTimerRef.current = window.setTimeout(() => {
+      setFacilityRoom(room);
+      setNexusPose(pose);
+      updateFacility((current) => ({ ...current, location: room, pose, discoveredRooms: current.discoveredRooms.includes(room) ? current.discoveredRooms : [...current.discoveredRooms, room] }));
+      setRouteTransition(false);
+      setNexusEntered(true);
+    }, reducedMotion ? 120 : 560);
+  }, [experienceMode, reducedMotion, releasePointer, routeTransition, updateFacility]);
+  const addFacilityClue = useCallback((clue: FacilityClue, interaction: string) => {
+    updateFacility((current) => ({
+      ...current,
+      n07Clues: current.n07Clues.includes(clue) ? current.n07Clues : [...current.n07Clues, clue],
+      completedInteractions: current.completedInteractions.includes(interaction) ? current.completedInteractions : [...current.completedInteractions, interaction],
+    }));
+  }, [updateFacility]);
   const startObservation = useCallback(() => {
     if (experienceMode === "transition") return;
     releasePointer(); setArchiveOpen(false); setTerminalOpen(false); setNexusScanner(false); setReturningToNexus(false); setExperienceMode("transition"); setIntroComplete(false);
     audio.cueInteraction("inspect"); saveNexusCheckpoint("OBSERVATION_STARTED", nexusPose);
+    updateFacility((current) => ({ ...current, location: "nexus", pose: nexusPose }));
     window.scrollTo({ top: 0, behavior: "auto" });
     transitionTimerRef.current = window.setTimeout(() => setExperienceMode("observation"), reducedMotion ? 180 : 950);
-  }, [audio, experienceMode, nexusPose, reducedMotion, releasePointer]);
+  }, [audio, experienceMode, nexusPose, reducedMotion, releasePointer, updateFacility]);
   const returnToNexus = useCallback(() => {
     releasePointer(); setArchiveOpen(false); setInspectedId(null); setReturningToNexus(true); setExperienceMode("transition");
     saveNexusCheckpoint(postJourney ? "OBSERVATION_COMPLETE" : "NEXUS", nexusPose);
     window.scrollTo({ top: 0, behavior: "auto" });
-    transitionTimerRef.current = window.setTimeout(() => { setExperienceMode("nexus"); setNexusEntered(true); setIntroComplete(true); }, reducedMotion ? 180 : 850);
-  }, [nexusPose, postJourney, reducedMotion, releasePointer]);
+    transitionTimerRef.current = window.setTimeout(() => { setFacilityRoom("nexus"); setNexusPose(facilityPoses.nexus); updateFacility((current) => ({ ...current, location: "nexus", pose: facilityPoses.nexus })); setExperienceMode("nexus"); setNexusEntered(true); setIntroComplete(true); }, reducedMotion ? 180 : 850);
+  }, [nexusPose, postJourney, reducedMotion, releasePointer, updateFacility]);
   const toggleNexusScanner = useCallback(() => { setNexusScanner((current) => { if (!current) audio.cueInteraction("scanner"); return !current; }); setTutorialVisible(false); }, [audio]);
   const handleNexusInteract = useCallback((target: NexusInteractionId) => {
     setTutorialVisible(false);
@@ -268,20 +318,87 @@ function VoidArchiveExperience() {
     if (target === "system-terminal") { releasePointer(); audio.cueInteraction("inspect"); setTerminalOpen(true); return; }
     if (target === "scanner-array") { toggleNexusScanner(); showNexusNotice("MEASUREMENT ARRAY / LOCAL LINK ESTABLISHED"); return; }
     if (target === "restricted-sector") { audio.cueInteraction("record"); showNexusNotice("N-06 / ACCESS RESTRICTED"); return; }
+    if (target === "route-record-vault") { audio.cueInteraction("archive"); travelTo("record-vault"); return; }
+    if (target === "route-signal-room") { audio.cueInteraction("scanner"); travelTo("signal-room"); return; }
+    if (target === "route-observation-deck") { audio.cueInteraction("inspect"); travelTo("observation-deck"); return; }
+    if (target === "route-maintenance-spine") { audio.cueInteraction("record"); travelTo("maintenance-spine"); return; }
+    if (target === "route-dead-sector") { audio.cueInteraction("record"); travelTo("dead-sector"); return; }
+    if (target === "return-nexus") { travelTo("nexus"); return; }
+    if (target === "return-record-vault") { travelTo("record-vault"); return; }
+    if (target === "return-signal-room") { travelTo("signal-room"); return; }
+    if (target === "record-search") { releasePointer(); audio.cueInteraction("record"); setFacilityModal("record"); return; }
+    if (target === "signal-analysis") { releasePointer(); audio.cueInteraction("scanner"); setFacilityModal("signal"); return; }
+    if (target === "observation-instrument") { releasePointer(); audio.cueInteraction("inspect"); setFacilityModal("instrument"); return; }
+    if (target === "dead-sector-scan") {
+      if (!nexusScanner) { showNexusNotice("SCANNER REQUIRED / CONTAINMENT RETURN WITHHELD"); return; }
+      addFacilityClue("dead-sector", "dead-sector-scan");
+      updateFacility((current) => ({ ...current, deadSectorDiscovered: true }));
+      reality.recordFacilityEvent("spatial", "dead-sector", "dead-sector");
+      audio.cueInteraction("scanner"); showNexusNotice("SECTOR N-00 / DECOMMISSIONED · SIGNATURE ACTIVE"); return;
+    }
+    if (target === "shortcut-control") {
+      updateFacility((current) => ({ ...current, unlockedShortcuts: current.unlockedShortcuts.includes("signal-spine") ? current.unlockedShortcuts : [...current.unlockedShortcuts, "signal-spine"], completedInteractions: current.completedInteractions.includes("shortcut-control") ? current.completedInteractions : [...current.completedInteractions, "shortcut-control"] }));
+      reality.recordFacilityEvent("intervention", "maintenance-spine");
+      audio.cueInteraction("record"); showNexusNotice("SHORTCUT / NEXUS-SIGNAL ROUTE AVAILABLE"); return;
+    }
+    if (target === "hidden-passage") {
+      if (!nexusScanner && !facilityProgress.signalResult) { showNexusNotice("WALL DEPTH / UNRESOLVED · SCANNER LINK REQUIRED"); return; }
+      updateFacility((current) => ({ ...current, hiddenPassageDiscovered: true, completedInteractions: current.completedInteractions.includes("hidden-passage") ? current.completedInteractions : [...current.completedInteractions, "hidden-passage"] }));
+      addFacilityClue("maintenance-marking", "hidden-passage");
+      reality.recordFacilityEvent("spatial", "maintenance-spine", "maintenance-marking");
+      audio.cueInteraction("scanner"); showNexusNotice("MISSING WALL DEPTH / PASSAGE CONFIRMED"); return;
+    }
+    if (target === "corridor-marker") {
+      addFacilityClue("corridor-label", "corridor-marker");
+      updateFacility((current) => ({ ...current, impossibleCorridorSeen: true }));
+      reality.recordFacilityEvent("witness", "maintenance-spine", "corridor-label");
+      showNexusNotice(facilityProgress.impossibleCorridorSeen ? "ROUTE LABEL / N-05" : "ROUTE LABEL / N-07 · PREVIOUS RETURN / N-05"); return;
+    }
+    if (target === "n07-gate") { setNexusScanner(true); audio.cueInteraction("scanner"); showNexusNotice("N-07 / LOCATION NONLOCAL · ACCESS ROUTE UNKNOWN"); return; }
     setNexusScanner(true); audio.cueInteraction("scanner"); showNexusNotice("ACTIVE SECTOR COUNT / 7 · INDEX RETURN / 01–06");
-  }, [audio, openArchive, releasePointer, showNexusNotice, startObservation, toggleNexusScanner]);
+  }, [addFacilityClue, audio, facilityProgress.impossibleCorridorSeen, facilityProgress.signalResult, nexusScanner, openArchive, reality, releasePointer, showNexusNotice, startObservation, toggleNexusScanner, travelTo, updateFacility]);
   const handleNexusPose = useCallback((pose: PlayerPose) => {
     setNexusPose(pose);
     const now = performance.now();
-    if (now - lastCheckpointRef.current > 1600) { lastCheckpointRef.current = now; saveNexusCheckpoint(postJourney ? "OBSERVATION_COMPLETE" : "NEXUS", pose); }
-  }, [postJourney]);
+    if (facilityRoom === "maintenance-spine" && facilityProgress.hiddenPassageDiscovered && !facilityProgress.impossibleCorridorSeen && Math.abs(pose.yaw) > 2.45) {
+      addFacilityClue("corridor-label", "corridor-turn");
+      updateFacility((current) => ({ ...current, impossibleCorridorSeen: true }));
+      reality.recordFacilityEvent("witness", "maintenance-spine", "corridor-label");
+      showNexusNotice("ROUTE LABEL / N-07 · PREVIOUS RETURN / N-05");
+    }
+    if (now - lastCheckpointRef.current > 1600) {
+      lastCheckpointRef.current = now;
+      saveNexusCheckpoint(postJourney ? "OBSERVATION_COMPLETE" : "NEXUS", pose);
+      updateFacility((current) => ({ ...current, location: facilityRoom, pose }));
+    }
+  }, [addFacilityClue, facilityProgress.hiddenPassageDiscovered, facilityProgress.impossibleCorridorSeen, facilityRoom, postJourney, reality, showNexusNotice, updateFacility]);
 
   useEffect(() => {
-    if (!terminalOpen) return;
-    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setTerminalOpen(false); };
+    if (!terminalOpen && !facilityModal) return;
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") { setTerminalOpen(false); setFacilityModal(null); } };
     window.addEventListener("keydown", escape);
     return () => window.removeEventListener("keydown", escape);
-  }, [terminalOpen]);
+  }, [facilityModal, terminalOpen]);
+
+  const handleRecordSearch = useCallback((query: string, clue: boolean) => {
+    updateFacility((current) => ({ ...current, recordSearches: current.recordSearches.includes(query) ? current.recordSearches : [...current.recordSearches, query], completedInteractions: current.completedInteractions.includes(`record:${query}`) ? current.completedInteractions : [...current.completedInteractions, `record:${query}`] }));
+    if (clue) addFacilityClue("record-future", "record:SUBJECT 07");
+    reality.recordFacilityEvent("record", "record-vault", clue ? "record-future" : undefined);
+    audio.cueInteraction(query === "SUBJECT 07" ? "subject" : "record");
+  }, [addFacilityClue, audio, reality, updateFacility]);
+  const handleSignalComplete = useCallback((result: string) => {
+    updateFacility((current) => ({ ...current, signalResult: result, completedInteractions: current.completedInteractions.includes("signal-7a") ? current.completedInteractions : [...current.completedInteractions, "signal-7a"], unlockedShortcuts: current.unlockedShortcuts.includes("signal-spine") ? current.unlockedShortcuts : [...current.unlockedShortcuts, "signal-spine"] }));
+    addFacilityClue("signal-7a", "signal-7a");
+    reality.recordFacilityEvent("signal", "signal-room", "signal-7a");
+    audio.cueInteraction("subject");
+    showNexusNotice("SIGNAL 7A / COMPONENT ISOLATED");
+  }, [addFacilityClue, audio, reality, showNexusNotice, updateFacility]);
+  const handleObservationSighting = useCallback(() => {
+    updateFacility((current) => ({ ...current, observationInstrumentUsed: true, completedInteractions: current.completedInteractions.includes("observation-sighting") ? current.completedInteractions : [...current.completedInteractions, "observation-sighting"] }));
+    addFacilityClue("observation-sighting", "observation-sighting");
+    reality.recordFacilityEvent("witness", "observation-deck", "observation-sighting");
+    audio.cueInteraction("subject");
+  }, [addFacilityClue, audio, reality, updateFacility]);
 
   const interactionHidden = archiveOpen || Boolean(inspectedArtifact) || experienceMode !== "observation";
   const gravityRecordVisible = !interactionHidden && showInfo && (journeyStage === "observation" || journeyStage === "approach");
@@ -309,13 +426,19 @@ function VoidArchiveExperience() {
       <InspectMode artifact={inspectedArtifact} primary={inspectionPrimary} scanner={scannerActive} reducedMotion={reducedMotion} onPrimary={handlePrimary} onScanner={handleScanner} onPointer={handleInspectionPointer} onExit={() => setInspectedId(null)} />
       <RealityEffects artifact={interactionHidden ? realityArtifact : stageArtifact(journeyStage)} primary={inspectionPrimary} freezeActive={freezeActive} reducedMotion={reducedMotion} />
       <SoundControl active={!isLoading && introComplete} mode={archiveOpen ? "archive" : inspectedArtifact ? "inspect" : experienceMode === "nexus" ? "nexus" : "journey"} />
-      {experienceMode === "nexus" && <NexusHUD entered={nexusEntered} active={nexusActive} target={nexusTarget} scanner={nexusScanner} pointerLocked={pointerLocked} tier={tier} hasFinePointer={hasFinePointer} controls={nexusControls} session={realitySession} tutorialVisible={tutorialVisible} notice={nexusNotice} onEnter={() => { setNexusEntered(true); setTutorialVisible(true); }} onBegin={startObservation} onArchive={openArchive} onSystem={() => { releasePointer(); setTerminalOpen(true); }} onInteract={() => { if (nexusTarget) handleNexusInteract(nexusTarget); }} onScanner={toggleNexusScanner} />}
-      <NexusTerminal open={terminalOpen} session={realitySession} onClose={() => setTerminalOpen(false)} onArchive={() => { setTerminalOpen(false); openArchive(); }} />
+      {experienceMode === "nexus" && <NexusHUD entered={nexusEntered} active={nexusActive} target={nexusTarget} scanner={nexusScanner} pointerLocked={pointerLocked} tier={tier} hasFinePointer={hasFinePointer} controls={nexusControls} session={realitySession} tutorialVisible={tutorialVisible} notice={nexusNotice} room={facilityRoom} progress={facilityProgress} objective={facilityObjective} onEnter={() => { setNexusEntered(true); setTutorialVisible(true); }} onBegin={startObservation} onArchive={openArchive} onSystem={() => { releasePointer(); setTerminalOpen(true); }} onInteract={() => { if (nexusTarget) handleNexusInteract(nexusTarget); }} onScanner={toggleNexusScanner} />}
+      {experienceMode === "nexus" && facilityRoom !== "nexus" && !facilityModal && !archiveOpen && !terminalOpen && <button type="button" onClick={() => travelTo("nexus")} className="fixed bottom-20 left-1/2 z-[43] min-h-10 -translate-x-1/2 border border-white/10 bg-black/36 px-4 text-[7px] tracking-[.24em] text-white/34 backdrop-blur-sm">ACCESSIBILITY RETURN / NEXUS</button>}
+      <NexusTerminal open={terminalOpen} session={realitySession} progress={facilityProgress} onClose={() => setTerminalOpen(false)} onArchive={() => { setTerminalOpen(false); openArchive(); }} />
+      <RecordSearch open={facilityModal === "record"} progress={facilityProgress} session={realitySession} onClose={() => setFacilityModal(null)} onSearch={handleRecordSearch} />
+      <SignalAnalysis open={facilityModal === "signal"} session={realitySession} complete={Boolean(facilityProgress.signalResult)} onClose={() => setFacilityModal(null)} onComplete={handleSignalComplete} />
+      <ObservationInstrument open={facilityModal === "instrument"} session={realitySession} onClose={() => setFacilityModal(null)} onObserve={handleObservationSighting} />
+      <FacilityTransition visible={routeTransition} room={routeDestination} />
       <NexusTransition visible={experienceMode === "transition"} returning={returningToNexus} />
       <ObserverDebugPanel />
-      {process.env.NODE_ENV !== "production" && <output hidden data-nexus-diagnostics={JSON.stringify({ mode: experienceMode, journeyStage, entered: nexusEntered, active: nexusActive, target: nexusTarget, scanner: nexusScanner, terminal: terminalOpen, pointerLocked, pose: nexusPose, controls: nexusControls.snapshot() })} />}
+      <FacilityDebugPanel room={facilityRoom} progress={facilityProgress} onTravel={travelTo} onInteract={() => handleNexusInteract(facilityRoom === "record-vault" ? "record-search" : facilityRoom === "signal-room" ? "signal-analysis" : facilityRoom === "dead-sector" ? "dead-sector-scan" : facilityRoom === "observation-deck" ? "observation-instrument" : facilityRoom === "maintenance-spine" ? "hidden-passage" : "archive-map")} onCorridor={() => handleNexusInteract("corridor-marker")} onReset={() => { clearFacilityProgress(); const fresh = createFacilityProgress(); setFacilityProgress(fresh); setFacilityRoom("nexus"); setNexusPose(facilityPoses.nexus); }} onUnlock={() => updateFacility((current) => ({ ...current, signalResult: current.signalResult ?? "QA / ISOLATED", hiddenPassageDiscovered: true, unlockedShortcuts: ["signal-spine"], n07Clues: ["record-future", "signal-7a", "maintenance-marking"] }))} />
+      {process.env.NODE_ENV !== "production" && <output hidden data-nexus-diagnostics={JSON.stringify({ mode: experienceMode, journeyStage, entered: nexusEntered, active: nexusActive, target: nexusTarget, scanner: nexusScanner, terminal: terminalOpen, pointerLocked, room: facilityRoom, routeTransition, facilityModal, progress: facilityProgress, pose: nexusPose, controls: nexusControls.snapshot() })} />}
       <LoaderOverlay isVisible={isLoading} reducedMotion={reducedMotion} returningVisitor={realitySession.returningVisitor} />
-      <ArchiveCanvas isSceneReady={!isLoading} reducedMotion={reducedMotion} scrollProgress={progressRef} inspection={inspectionRef} tier={tier} quality={quality} hasFinePointer={hasFinePointer} onIntroComplete={handleIntroComplete} mode={experienceMode} nexusActive={nexusActive} gateOpening={experienceMode === "transition" && !returningToNexus} nexusControls={nexusControls} nexusPose={nexusPose} discoveredCount={nexusDiscoveredCount} session={realitySession} onNexusTarget={setNexusTarget} onNexusInteract={handleNexusInteract} onNexusScanner={toggleNexusScanner} onNexusPose={handleNexusPose} onPointerLock={setPointerLocked} />
+      <ArchiveCanvas isSceneReady={!isLoading} reducedMotion={reducedMotion} scrollProgress={progressRef} inspection={inspectionRef} tier={tier} quality={quality} hasFinePointer={hasFinePointer} onIntroComplete={handleIntroComplete} mode={experienceMode} nexusActive={nexusActive} gateOpening={experienceMode === "transition" && !returningToNexus} nexusControls={nexusControls} nexusPose={nexusPose} discoveredCount={nexusDiscoveredCount} session={realitySession} facilityRoom={facilityRoom} facilityProgress={facilityProgress} facilityScanner={nexusScanner} onNexusTarget={setNexusTarget} onNexusInteract={handleNexusInteract} onNexusScanner={toggleNexusScanner} onNexusPose={handleNexusPose} onPointerLock={setPointerLocked} />
     </main>
   );
 }
@@ -340,4 +463,23 @@ function ObserverDebugPanel() {
       </div>
     </aside>
   );
+}
+
+function FacilityDebugPanel({ room, progress, onTravel, onInteract, onCorridor, onReset, onUnlock }: { room: FacilityRoom; progress: FacilityProgress; onTravel: (room: FacilityRoom) => void; onInteract: () => void; onCorridor: () => void; onReset: () => void; onUnlock: () => void }) {
+  const [hidden, setHidden] = useState(false);
+  const enabled = useSyncExternalStore(
+    () => () => undefined,
+    () => process.env.NODE_ENV !== "production" && new URLSearchParams(location.search).has("facility-qa"),
+    () => false,
+  );
+  if (!enabled || hidden) return null;
+  const rooms: FacilityRoom[] = ["nexus", "record-vault", "signal-room", "dead-sector", "observation-deck", "maintenance-spine"];
+  return <aside className="fixed right-3 top-1/2 z-[72] max-w-56 -translate-y-1/2 border border-white/20 bg-black/90 p-3 text-white" aria-label="Facility QA controls">
+    <p className="text-[7px] tracking-[.28em] text-white/42">FACILITY QA / DEV ONLY</p>
+    <p className="mt-2 text-[7px] tracking-[.18em] text-white/64">{room.toUpperCase()} · {progress.n07Clues.length} CLUES</p>
+    <div className="mt-3 grid grid-cols-2 gap-1">{rooms.map((target) => <button key={target} type="button" onClick={() => onTravel(target)} className="min-h-8 border border-white/12 px-2 text-[6px] tracking-[.14em] text-white/48">{target.replaceAll("-", " ").toUpperCase()}</button>)}</div>
+    <button type="button" onClick={onInteract} className="mt-2 min-h-8 w-full border border-white/14 px-2 text-[6px] tracking-[.14em] text-white/56">OPEN CURRENT INTERACTION</button>
+    {room === "maintenance-spine" && <button type="button" onClick={onCorridor} className="mt-1 min-h-8 w-full border border-white/14 px-2 text-[6px] tracking-[.14em] text-white/56">TRIGGER CORRIDOR EVENT</button>}
+    <div className="mt-1 flex gap-1"><button type="button" onClick={onUnlock} className="min-h-8 flex-1 border border-white/12 px-2 text-[6px] tracking-[.14em] text-white/48">UNLOCK ROUTES</button><button type="button" onClick={onReset} className="min-h-8 border border-white/12 px-2 text-[6px] tracking-[.14em] text-white/48">RESET</button><button type="button" onClick={() => setHidden(true)} className="min-h-8 border border-white/12 px-2 text-[6px] tracking-[.14em] text-white/48">HIDE QA</button></div>
+  </aside>;
 }

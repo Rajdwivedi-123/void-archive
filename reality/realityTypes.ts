@@ -6,6 +6,7 @@ export type ObserverAffinity = "gravity" | "optical" | "temporal" | "adaptive" |
 export type ObserverArchetype = "interventionist" | "witness" | "chronologist" | "cartographer" | "synaptic" | "mnemonist";
 export type ObservationQuality = "partial" | "coherent" | "interrupted" | "extended";
 export type N07Route = "temporal" | "void" | "archive" | "memory" | null;
+export type FacilityObserverEvent = "record" | "signal" | "spatial" | "intervention" | "witness";
 
 export type AffinityScores = {
   gravityAffinity: number;
@@ -40,6 +41,9 @@ export type RealitySession = {
   totalInteractions: number;
   realityFreezeSeen: boolean;
   n07Route: N07Route;
+  facilityTraits: Record<FacilityObserverEvent, number>;
+  facilityRooms: string[];
+  facilityClues: string[];
 };
 
 export type PointerSample = { x: number; y: number; at: number };
@@ -91,4 +95,5 @@ export type RealityStore = {
   setFreezeActive: (active: boolean) => void;
   resetTrace: () => void;
   applyDebugProfile: (profile: DebugProfile) => void;
+  recordFacilityEvent: (event: FacilityObserverEvent, room: string, clue?: string) => void;
 };
