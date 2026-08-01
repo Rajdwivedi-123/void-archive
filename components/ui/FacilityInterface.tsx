@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { FacilityProgress, FacilityRoom } from "@/game/gameTypes";
 import type { RealitySnapshot } from "@/reality/realityTypes";
+import { resolveFacilityMutations } from "@/game/facilityMutations";
 
 type RecordQuery = "VA-001" | "SUBJECT 07" | "EVENT 13" | "SIGNAL 7A" | "SECTOR N-07" | "DEAD SECTOR" | "OBJECT 005" | "ARCHIVE INITIALIZATION";
 
@@ -11,18 +12,19 @@ export function RecordSearch({ open, progress, session, onClose, onSearch }: { o
   if (!open) return null;
   const progressed = session.archiveUnlocked || session.returningVisitor || progress.n07Clues.length >= 2;
   const investigation = progress.investigation;
+  const mutations = resolveFacilityMutations(progress.consequences);
   const result = query === "VA-001"
-    ? { code: "CONTAINMENT / G-14", status: "VERIFIED", body: "Field geometry displaced before the first registered mass event." }
+    ? { code: "CONTAINMENT / G-14", status: mutations.gravityBent ? "EXCURSION COMMITTED" : mutations.containmentAligned ? "CONTROLLED OBSERVATION" : "VERIFIED", body: mutations.gravityBent ? "Field geometry displaced after observer-driven overdrive. Future containment failure appended before current timestamp." : "Field geometry displaced before the first registered mass event." }
     : query === "SUBJECT 07"
       ? progressed ? { code: "OBSERVER RECORD / 07", status: "RECORD EXISTS", body: investigation.knowledgeFlags.includes("subject-07-identified") ? `CREATION TIME / FUTURE RELATIVE TO CURRENT SESSION · OBSERVER CLASS / ${session.archetype.toUpperCase()} · PRIMARY METHOD / ${session.affinity.toUpperCase()} · N-07 VECTOR / ${investigation.knowledgeFlags.includes("n07-spatial-vector") ? "SPATIAL" : investigation.knowledgeFlags.includes("n07-temporal-vector") ? "TEMPORAL" : "UNRESOLVED"} · UNRESOLVED MEMORY / NOT CURRENT SESSION` : "CREATION TIME / FUTURE RELATIVE TO CURRENT SESSION · ARCHIVE RESPONSE / OBSERVER MATCH PARTIAL" } : { code: "SUBJECT INDEX", status: "NO RECORD", body: "QUERY RETURN / NULL" }
       : query === "EVENT 13"
         ? session.event13Discovered || session.archetype === "chronologist" ? { code: "EVENT SEQUENCE / 13", status: "OBSERVER-DEPENDENT", body: `${session.archetype.toUpperCase()} TRACE / EVENT PRECEDES OBSERVATION` } : { code: "EVENT SEQUENCE", status: "INSUFFICIENT CLEARANCE", body: "TEMPORAL RECORD / REDACTED" }
         : query === "SIGNAL 7A"
-          ? investigation.evidenceDiscovered.includes("S-7A") ? { code: "TRANSMISSION / 7A", status: "INTERNAL SOURCE", body: "DISTANCE / 43 M · TEMPORAL OFFSET / 04.731 SEC · FACILITY ORIGIN / DISPUTED" } : { code: "TRANSMISSION / 7A", status: "TRACE INCOMPLETE", body: "RECEIVER ANALYSIS REQUIRED" }
+          ? investigation.evidenceDiscovered.includes("S-7A") ? { code: "TRANSMISSION / 7A", status: (progress.consequences.signal7aResolution ?? "INTERNAL SOURCE").toUpperCase(), body: `DISTANCE / 43 M · TEMPORAL OFFSET / 04.731 SEC · FACILITY ORIGIN / ${mutations.signalTopology === "spatial" ? "N-07" : mutations.signalTopology === "temporal" ? "EVENT 13" : mutations.signalTopology === "neural" ? "OBSERVER-REACTIVE" : "DISPUTED"}` } : { code: "TRANSMISSION / 7A", status: "TRACE INCOMPLETE", body: "RECEIVER ANALYSIS REQUIRED" }
           : query === "DEAD SECTOR"
             ? investigation.evidenceDiscovered.includes("D-N00") ? { code: "SECTOR N-00", status: "SECTOR EMPTY", body: "SCANNER ADDENDUM / CONTAINMENT SIGNATURE ACTIVE · SYSTEM STATEMENT DISPROVEN" } : { code: "SECTOR N-00", status: "DECOMMISSIONED", body: "NO ACTIVE CONTAINMENT REGISTERED" }
             : query === "OBJECT 005"
-              ? investigation.evidenceDiscovered.includes("V-NONLOCAL") ? { code: "OBJECT 005 / SPATIAL", status: "BOUNDARY NONLOCAL", body: "VISIBLE WIDTH / 12.0 M · ARCHIVE WIDTH / 18.4 M · MISSING INTERVAL / N-07 VECTOR" } : { code: "OBJECT 005 / SPATIAL", status: "OBJECT CONTAINED", body: "GEOMETRY RETURN / NOMINAL" }
+              ? investigation.evidenceDiscovered.includes("V-NONLOCAL") ? { code: "OBJECT 005 / SPATIAL", status: "BOUNDARY NONLOCAL", body: `VISIBLE WIDTH / 12.0 M · ARCHIVE WIDTH / 18.4 M · MISSING INTERVAL / N-07 VECTOR${mutations.recoveredRecord ? " · LOST LINE RECOVERED BY MEMORY" : ""}` } : { code: "OBJECT 005 / SPATIAL", status: "OBJECT CONTAINED", body: "GEOMETRY RETURN / NOMINAL" }
               : query === "ARCHIVE INITIALIZATION"
                 ? investigation.knowledgeFlags.includes("offset-04.731") ? { code: "INITIALIZATION / T-0", status: "PERMISSION GRANTED", body: "ARCHIVE CREATED / 04.731 SEC AFTER FIRST RECORD · FIRST RECORD / EVENT 13" } : { code: "INITIALIZATION / T-0", status: "KNOWLEDGE LOCK", body: "ENTERED TEMPORAL MODEL DOES NOT MATCH ARCHIVE OFFSET" }
                 : { code: "SECTOR N-07", status: progress.n07Clues.length >= 3 || investigation.investigationStage === "n07-vector" ? "LOCATION NONLOCAL" : "ACCESS REDACTED", body: progress.n07Clues.length >= 3 || investigation.investigationStage === "n07-vector" ? "PHYSICAL ROUTE DISAGREES WITH ARCHIVE MAP" : "COORDINATE FIELD / WITHHELD" };

@@ -9,8 +9,10 @@ import type { GraphicsQuality } from "@/hooks/useGraphicsQuality";
 import { useArchiveAudio } from "@/audio/useArchiveAudio";
 import type { InvestigationProgress } from "@/game/investigation";
 import { InvestigationBoard } from "./InvestigationInterface";
+import type { ConsequenceState } from "@/game/consequenceTypes";
+import { resolveFacilityMutations } from "@/game/facilityMutations";
 
-type ArchiveSection = "index" | "investigation" | "connections" | "sectors" | "system";
+type ArchiveSection = "index" | "investigation" | "connections" | "response" | "sectors" | "system";
 
 type ArchiveModeProps = {
   open: boolean;
@@ -20,6 +22,7 @@ type ArchiveModeProps = {
   reducedMotion: boolean;
   graphicsQuality: GraphicsQuality;
   investigation: InvestigationProgress;
+  consequences: ConsequenceState;
   onClose: () => void;
   onSelect: (id: ArtifactId) => void;
   onRevisit: (id: ArtifactId) => void;
@@ -62,6 +65,7 @@ export function ArchiveMode({
   reducedMotion,
   graphicsQuality,
   investigation,
+  consequences,
   onClose,
   onSelect,
   onRevisit,
@@ -94,7 +98,7 @@ export function ArchiveMode({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose, open]);
 
-  useEffect(() => { if (open) reality.recordArchiveView(section === "investigation" ? "connections" : section); }, [open, reality, section]);
+  useEffect(() => { if (open) reality.recordArchiveView(section === "investigation" ? "connections" : section === "response" ? "system" : section); }, [open, reality, section]);
 
   return (
     <section
@@ -120,9 +124,9 @@ export function ArchiveMode({
         </header>
 
         <nav className="flex shrink-0 justify-start gap-4 overflow-x-auto border-b border-white/8 py-4 text-[7px] tracking-[0.16em] text-white/35 sm:gap-5 sm:text-[8px] sm:tracking-[0.28em]" aria-label="Archive sections">
-          {(["index", "investigation", "connections", "sectors", "system"] as ArchiveSection[]).map((item) => (
+          {(["index", "investigation", "connections", "response", "sectors", "system"] as ArchiveSection[]).map((item) => (
             <button key={item} className={`min-h-10 whitespace-nowrap border-b transition-colors ${section === item ? "border-white/55 text-white/85" : "border-transparent hover:text-white/65"}`} onClick={() => setSection(item)} type="button">
-              {item === "index" ? "ARTIFACT INDEX" : item === "investigation" ? "EVIDENCE" : item.toUpperCase()}
+              {item === "index" ? "ARTIFACT INDEX" : item === "investigation" ? "EVIDENCE" : item === "response" ? "FACILITY RESPONSE" : item.toUpperCase()}
             </button>
           ))}
           <button className="ml-auto hidden min-h-10 whitespace-nowrap text-white/45 hover:text-white sm:block" onClick={onClose} type="button">RESUME JOURNEY</button>
@@ -186,12 +190,26 @@ export function ArchiveMode({
 
           {section === "investigation" && <InvestigationBoard progress={investigation} session={session} onConnect={onConnectEvidence} />}
           {section === "connections" && <ConnectionMap discoveredCount={discoveredCount} revealN07={postJourney || session.event13Discovered} mirrorDepth={session.mirrorObservationDepth} archetype={session.archetype} route={session.n07Route} onSelect={(id) => { selectArtifact(id); setSection("index"); }} />}
+          {section === "response" && <FacilityResponsePanel consequences={consequences} />}
           {section === "sectors" && <SectorMap discoveredCount={discoveredCount} revealN07={postJourney || session.event13Discovered} voidMeasured={session.voidProbeCount > 0} onSelect={(id) => { selectArtifact(id); setSection("index"); }} />}
           {section === "system" && <SystemPanel discoveredCount={discoveredCount} postJourney={postJourney} session={session} quality={graphicsQuality} audioEnabled={audio.enabled} onReset={() => { if (window.confirm("Reset the local observer trace? This cannot be undone.")) { audio.cueInteraction("reset"); reality.resetTrace(); } }} />}
         </div>
       </div>
     </section>
   );
+}
+
+function FacilityResponsePanel({ consequences }: { consequences: ConsequenceState }) {
+  const mutations = resolveFacilityMutations(consequences);
+  const sectors = [
+    ["NEXUS", mutations.gravityBent ? "FIELD AXIS DISPLACED" : mutations.containmentAligned ? "FIELD AXIS COHERENT" : "NO COMMITTED RESPONSE"],
+    ["RECORD VAULT", mutations.recoveredRecord ? "MISSING SLAB RESTORED" : mutations.voidAbsence ? "INDEX LINE ABSENT" : "INDEX NOMINAL"],
+    ["SIGNAL ROOM", mutations.signalTopology ? `${mutations.signalTopology.toUpperCase()} TOPOLOGY` : "RECEIVER UNRESOLVED"],
+    ["DEAD SECTOR", mutations.deadSectorState.toUpperCase()],
+    ["MAINTENANCE", mutations.routeVariant ? `${mutations.routeVariant.toUpperCase()} ROUTE` : "LENGTH UNVERIFIED"],
+    ["N-07", mutations.rareTopology ? "LOCATION RESOLVED / ACCESS UNRESOLVED" : "VECTOR INCOMPLETE"],
+  ];
+  return <div className="mx-auto max-w-5xl" data-facility-response><p className="text-[8px] tracking-[.42em] text-white/28">ARCHIVE CAUSAL MODEL / COMMITTED RESPONSES</p><h3 className="mt-4 text-2xl tracking-[.28em] sm:text-4xl">FACILITY RESPONSE</h3><p className="mt-4 max-w-2xl text-[9px] leading-6 tracking-[.2em] text-white/36">The archive does not preserve a neutral state. Physical responses remain attached to the observation that produced them.</p><div className="relative mt-9 grid gap-px border-y border-white/10 sm:grid-cols-2">{sectors.map(([sector, response], index) => <div key={sector} className={`min-h-28 border-l p-4 ${index === 5 && mutations.rareTopology ? "border-[#b8a99f]/45" : "border-white/12"}`}><p className="text-[7px] tracking-[.3em] text-white/27">{sector}</p><p className="mt-4 text-[9px] tracking-[.21em] text-white/64">{response}</p><div className={`mt-5 h-px ${response.includes("NOMINAL") || response.includes("UNRESOLVED") ? "w-12 bg-white/10" : "w-28 bg-white/26"}`} /></div>)}</div><div className="mt-8 border-l border-white/12 pl-4 text-[7px] leading-6 tracking-[.22em] text-white/32"><p>CAUSALITY CONFLICTS / {consequences.rejectedCorrelations.length}</p><p>PERSISTENT ANOMALIES / {mutations.responseLabels.length}</p><p>ACTIVE SECTORS / {mutations.activeSectorCount}</p><p>ENDING VECTOR / {mutations.ending.toUpperCase().replaceAll("-", " ")}</p></div></div>;
 }
 
 function ConnectionMap({ discoveredCount, revealN07, mirrorDepth, archetype, route, onSelect }: { discoveredCount: number; revealN07: boolean; mirrorDepth: number; archetype: string; route: string | null; onSelect: (id: ArtifactId) => void }) {

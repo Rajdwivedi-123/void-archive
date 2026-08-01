@@ -5,6 +5,7 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { RealitySnapshot } from "@/reality/realityTypes";
 import type { FacilityProgress, NexusInteractionId } from "@/game/gameTypes";
+import { resolveFacilityMutations } from "@/game/facilityMutations";
 
 type Props = { reducedMotion: boolean; discoveredCount: number; session: RealitySnapshot; gateOpening: boolean; progress: FacilityProgress };
 
@@ -68,6 +69,7 @@ export function ArchiveNexus({ reducedMotion, discoveredCount, session, gateOpen
     { position: [13.2, 0, -1.8] as [number, number, number], rotation: -Math.PI / 2 },
     { position: [13.2, 0, 7.1] as [number, number, number], rotation: -Math.PI / 2 },
   ], []);
+  const mutations = useMemo(() => resolveFacilityMutations(progress.consequences), [progress.consequences]);
 
   useFrame((state, delta) => {
     clock.current += delta;
@@ -98,15 +100,18 @@ export function ArchiveNexus({ reducedMotion, discoveredCount, session, gateOpen
       {Array.from({ length: 18 }, (_, index) => <mesh key={index} position={[0, .025, 15 - index * 1.95]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[12, .018]} /><meshBasicMaterial color="#758083" transparent opacity={index % 4 === 0 ? .24 : .08} /></mesh>)}
 
       <mesh position={[0, -8.5, -31]}><boxGeometry args={[56, 1, 52]} /><meshBasicMaterial color="#000000" /></mesh>
-      {[-17.2, 17.2].map((x, side) => <group key={x}>{Array.from({ length: 7 }, (_, index) => <Monolith key={index} position={[x + (side ? -.35 : .35) * (index % 2), 10 + index * 3.9, -17 + index * 7.4]} scale={[2.4 + (index % 3) * .7, 23 + index * 3.2, 3.6]} rotation={[0, side ? -.035 : .035, side ? -.012 : .012]} />)}</group>)}
+      {[-17.2, 17.2].map((x, side) => <group key={x}>{Array.from({ length: 7 }, (_, index) => mutations.voidAbsence && side === 1 && index === 3 ? null : <Monolith key={index} position={[x + (side ? -.35 : .35) * (index % 2) + (mutations.gravityBent ? Math.sin(index * 1.7) * .55 : 0), 10 + index * 3.9, -17 + index * 7.4]} scale={[2.4 + (index % 3) * .7, 23 + index * 3.2, 3.6]} rotation={[0, side ? -.035 : .035, (side ? -.012 : .012) + (mutations.gravityBent ? (index - 3) * .009 : 0)]} />)}</group>)}
       <Monolith position={[-6.4, 18, -28]} scale={[8.5, 38, 4.4]} rotation={[0, .07, -.035]} />
       <Monolith position={[8.7, 24, -31]} scale={[11.5, 51, 5.8]} rotation={[0, -.04, .018]} />
+      {mutations.memoryGhost && <group position={[5.8, 13, -17]} rotation={[0, -.28, 0]}><mesh><boxGeometry args={[4.8, 22, .12]} /><meshBasicMaterial color="#aab6b7" transparent opacity={.035} depthWrite={false} /></mesh><mesh position={[0, 0, .08]}><boxGeometry args={[.035, 15, .03]} /><meshBasicMaterial color="#b5c0c1" transparent opacity={.28} toneMapped={false} /></mesh></group>}
+      {mutations.voidAbsence && <group position={[12.4, 11, -2]}><mesh><boxGeometry args={[5.8, 23, 5]} /><meshBasicMaterial color="#000000" /></mesh><mesh position={[-2.9, 0, 2.52]}><boxGeometry args={[.04, 18, .03]} /><meshBasicMaterial color="#b5c0c1" transparent opacity={.16} toneMapped={false} /></mesh></group>}
       <mesh position={[0, 31, -23]} rotation={[0, 0, -.08]}><boxGeometry args={[36, 1.6, 3]} /><meshStandardMaterial color="#090c0d" metalness={.85} roughness={.32} /></mesh>
 
       <group ref={mechanism} position={[0, 12.8, -8.2]}>
         {[3.1, 4.4, 6.2].map((radius, index) => <mesh key={radius} rotation={[Math.PI / 2 + index * .34, index * .52, 0]}><torusGeometry args={[radius, index === 1 ? .14 : .07, 12, 96]} /><meshPhysicalMaterial color={index === 1 ? "#899497" : "#333a3c"} metalness={.94} roughness={.19} emissive="#273033" emissiveIntensity={index === 1 ? .18 : .04} /></mesh>)}
         <mesh><icosahedronGeometry args={[1.05, 1]} /><meshPhysicalMaterial color="#0a0d0e" metalness={.9} roughness={.22} emissive="#6f7b7d" emissiveIntensity={.18} /></mesh>
         {Array.from({ length: 12 }, (_, index) => <mesh key={index} position={[Math.cos(index / 12 * Math.PI * 2) * 7.7, (index % 3 - 1) * .65, Math.sin(index / 12 * Math.PI * 2) * 7.7]}><boxGeometry args={[.05, 1.8, .05]} /><meshBasicMaterial color="#a6b1b1" transparent opacity={index % 4 === 0 ? .58 : .19} toneMapped={false} /></mesh>)}
+        {mutations.neuralPrediction && <mesh rotation={[Math.PI / 2, .3, 0]}><torusGeometry args={[8.8, .035, 8, 96]} /><meshBasicMaterial color="#c6cecc" transparent opacity={.34} toneMapped={false} /></mesh>}
       </group>
       <mesh position={[0, 12.8, -12.8]}><cylinderGeometry args={[5.6, 7.8, 25, 24, 1, true]} /><meshBasicMaterial color="#9ba7a9" transparent opacity={.018} side={THREE.DoubleSide} depthWrite={false} blending={THREE.AdditiveBlending} /></mesh>
       <mesh position={[0, 10.8, -13.2]}><boxGeometry args={[.055, 20, .055]} /><meshBasicMaterial color="#c5cdcb" transparent opacity={.62} toneMapped={false} /></mesh>
@@ -129,6 +134,8 @@ export function ArchiveNexus({ reducedMotion, discoveredCount, session, gateOpen
         {progress.discoveredRooms.filter((room) => room !== "nexus").map((room, index) => <mesh key={room} position={[Math.cos(index * 1.37) * 2.85, -.7 + index * .34, Math.sin(index * 1.37) * 2.85]}><octahedronGeometry args={[.1, 0]} /><meshBasicMaterial color="#aab5b5" transparent opacity={.42} toneMapped={false} /></mesh>)}
         <mesh><sphereGeometry args={[.42, 16, 12]} /><meshBasicMaterial color="#b3bdbc" transparent opacity={.58} toneMapped={false} /></mesh>
         {session.event13Discovered && <mesh position={[.78, .42, -.55]}><octahedronGeometry args={[.11, 0]} /><meshBasicMaterial color="#b8aaa1" transparent opacity={.42} toneMapped={false} /></mesh>}
+        {mutations.temporalEarlyResponse && <mesh position={[-1.4, .8, 1.1]}><octahedronGeometry args={[.13, 0]} /><meshBasicMaterial color="#c2b6ae" transparent opacity={.58} toneMapped={false} /></mesh>}
+        {mutations.rareTopology && <group position={[0, -2.4, 0]} rotation={[.7, .4, 0]}><mesh><torusGeometry args={[3.6, .06, 8, 96]} /><meshBasicMaterial color="#c5b7ae" transparent opacity={.55} toneMapped={false} /></mesh><mesh position={[0, 0, 3.6]}><octahedronGeometry args={[.2, 0]} /><meshBasicMaterial color="#d0c3ba" transparent opacity={.72} /></mesh></group>}
       </group>
       <mesh position={[-8.2, .55, -1]}><cylinderGeometry args={[2.8, 3.3, 1.1, 8]} /><meshPhysicalMaterial color="#080a0b" metalness={.9} roughness={.28} /></mesh>
       <InteractionVolume id="archive-map" position={[-8.2, 2.8, -1]} size={[5.3, 5.6, 5.3]} />

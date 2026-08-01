@@ -1,28 +1,31 @@
 import { defaultNexusPose, type FacilityProgress, type FacilityRoom, type NexusCheckpoint, type PlayerPose } from "./gameTypes";
 import { facilityPoses, safeFacilityPose } from "./facilityTopology";
 import { createInvestigationProgress, sanitizeInvestigation } from "./investigation";
+import { createConsequenceState, sanitizeConsequences } from "./consequences";
 
 const CHECKPOINT_KEY = "void-archive.game.v1";
 const FACILITY_KEY = "void-archive.game.v2";
 const PHASE15_LEGACY_KEY = "void-archive.game.v3";
 const INVESTIGATION_KEY = "void-archive.game.v4";
+const CONSEQUENCE_KEY = "void-archive.game.v5";
 
 const facilityRooms: FacilityRoom[] = ["nexus", "record-vault", "signal-room", "dead-sector", "observation-deck", "maintenance-spine"];
 
 export function createFacilityProgress(): FacilityProgress {
   return {
-    version: 4, epoch: 0, location: "nexus", pose: facilityPoses.nexus, discoveredRooms: ["nexus"], unlockedShortcuts: [], completedInteractions: [], n07Clues: [], recordSearches: [], signalResult: null,
+    version: 5, epoch: 0, location: "nexus", pose: facilityPoses.nexus, discoveredRooms: ["nexus"], unlockedShortcuts: [], completedInteractions: [], n07Clues: [], recordSearches: [], signalResult: null,
     hiddenPassageDiscovered: false, deadSectorDiscovered: false, observationInstrumentUsed: false, impossibleCorridorSeen: false,
     investigation: createInvestigationProgress(),
+    consequences: createConsequenceState(),
   };
 }
 
 export function loadFacilityProgress(): FacilityProgress {
   const fallback = createFacilityProgress();
   try {
-    const saved = JSON.parse(localStorage.getItem(INVESTIGATION_KEY) ?? localStorage.getItem(PHASE15_LEGACY_KEY) ?? localStorage.getItem(FACILITY_KEY) ?? "null") as Partial<FacilityProgress> | null;
+    const saved = JSON.parse(localStorage.getItem(CONSEQUENCE_KEY) ?? localStorage.getItem(INVESTIGATION_KEY) ?? localStorage.getItem(PHASE15_LEGACY_KEY) ?? localStorage.getItem(FACILITY_KEY) ?? "null") as Partial<FacilityProgress> | null;
     const savedVersion = (saved as { version?: number } | null)?.version;
-    if (!saved || (savedVersion !== 2 && savedVersion !== 3 && savedVersion !== 4)) {
+    if (!saved || (savedVersion !== 2 && savedVersion !== 3 && savedVersion !== 4 && savedVersion !== 5)) {
       const legacy = loadNexusCheckpoint();
       return { ...fallback, pose: safeFacilityPose("nexus", legacy.pose) };
     }
@@ -35,27 +38,28 @@ export function loadFacilityProgress(): FacilityProgress {
       investigation.investigationStage = investigation.evidenceDiscovered.length >= 2 ? "contradiction" : "observation";
     }
     return {
-      ...fallback, ...saved, version: 4, epoch: Number.isFinite(saved.epoch) ? saved.epoch as number : 0, location, pose: safeFacilityPose(location, saved.pose),
+      ...fallback, ...saved, version: 5, epoch: Number.isFinite(saved.epoch) ? saved.epoch as number : 0, location, pose: safeFacilityPose(location, saved.pose),
       discoveredRooms: facilityRooms.filter((room) => saved.discoveredRooms?.includes(room)).concat("nexus").filter((room, index, all) => all.indexOf(room) === index),
       unlockedShortcuts: Array.isArray(saved.unlockedShortcuts) ? saved.unlockedShortcuts.slice(-8) : [],
       completedInteractions: Array.isArray(saved.completedInteractions) ? saved.completedInteractions.slice(-24) : [],
       n07Clues: Array.isArray(saved.n07Clues) ? saved.n07Clues.slice(-8) as FacilityProgress["n07Clues"] : [],
       recordSearches: Array.isArray(saved.recordSearches) ? saved.recordSearches.slice(-12) : [],
       investigation,
+      consequences: sanitizeConsequences(saved.consequences),
     };
   } catch { return fallback; }
 }
 
 export function saveFacilityProgress(progress: FacilityProgress, replace = false) {
   try {
-    const stored = JSON.parse(localStorage.getItem(INVESTIGATION_KEY) ?? "null") as Partial<FacilityProgress> | null;
+    const stored = JSON.parse(localStorage.getItem(CONSEQUENCE_KEY) ?? "null") as Partial<FacilityProgress> | null;
     const incomingEpoch = Number.isFinite(progress.epoch) ? progress.epoch : 0;
     if (!replace && Number.isFinite(stored?.epoch) && (stored?.epoch ?? 0) > incomingEpoch) return;
-    localStorage.setItem(INVESTIGATION_KEY, JSON.stringify({ ...progress, version: 4, epoch: incomingEpoch, pose: safeFacilityPose(progress.location, progress.pose) }));
+    localStorage.setItem(CONSEQUENCE_KEY, JSON.stringify({ ...progress, version: 5, epoch: incomingEpoch, pose: safeFacilityPose(progress.location, progress.pose), consequences: sanitizeConsequences(progress.consequences) }));
   } catch { /* optional persistence */ }
 }
 
-export function clearFacilityProgress() { try { localStorage.removeItem(INVESTIGATION_KEY); localStorage.removeItem(PHASE15_LEGACY_KEY); localStorage.removeItem(FACILITY_KEY); } catch { /* optional persistence */ } }
+export function clearFacilityProgress() { try { localStorage.removeItem(CONSEQUENCE_KEY); localStorage.removeItem(INVESTIGATION_KEY); localStorage.removeItem(PHASE15_LEGACY_KEY); localStorage.removeItem(FACILITY_KEY); } catch { /* optional persistence */ } }
 
 export function loadNexusCheckpoint(): NexusCheckpoint {
   const fallback: NexusCheckpoint = { version: 1, checkpoint: "NEXUS", pose: defaultNexusPose };

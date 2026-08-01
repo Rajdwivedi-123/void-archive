@@ -6,6 +6,8 @@ import * as THREE from "three";
 import type { FacilityProgress, FacilityRoom, NexusInteractionId } from "@/game/gameTypes";
 import type { RealitySnapshot } from "@/reality/realityTypes";
 import { ArchiveNexus } from "./ArchiveNexus";
+import { resolveFacilityMutations } from "@/game/facilityMutations";
+import type { FacilityMutations } from "@/game/consequenceTypes";
 
 type WorldProps = {
   room: FacilityRoom;
@@ -47,7 +49,7 @@ function Portal({ id, position, rotation = 0, open = false }: { id: NexusInterac
   </group>;
 }
 
-function RecordVault({ reducedMotion, progress, session }: { reducedMotion: boolean; progress: FacilityProgress; session: RealitySnapshot }) {
+function RecordVault({ reducedMotion, progress, session, mutations }: { reducedMotion: boolean; progress: FacilityProgress; session: RealitySnapshot; mutations: FacilityMutations }) {
   const rails = useRef<THREE.Group>(null);
   useFrame((state) => { if (rails.current && !reducedMotion) rails.current.position.y = 10 + Math.sin(state.clock.elapsedTime * .22) * .55; state.invalidate(); });
   const slabs = useMemo(() => Array.from({ length: 22 }, (_, i) => ({ x: (i % 6 - 2.5) * 2.5, y: 4 + (i % 5) * 3.1, z: -15 + Math.floor(i / 6) * 7.2, h: 2.1 + (i % 3) * .7 })), []);
@@ -56,7 +58,8 @@ function RecordVault({ reducedMotion, progress, session }: { reducedMotion: bool
     <spotLight color="#88979a" intensity={9} position={[8, 11, -8]} angle={.3} penumbra={.9} distance={34} />
     <pointLight color="#87979a" intensity={7} position={[0, 4, 3]} distance={15} />
     <group ref={rails}>{[-7.8, 0, 7.8].map((x) => <group key={x}><mesh position={[x, 0, -5]}><boxGeometry args={[.13, 30, .28]} /><meshStandardMaterial color="#262e30" metalness={.95} roughness={.2} /></mesh><Edge position={[x, 0, -4.8]} scale={[.025, 25, .025]} opacity={.3} /></group>)}</group>
-    {slabs.map((slab, i) => <group key={i} position={[slab.x, slab.y, slab.z]} rotation={[0, (i % 2 ? -.04 : .035), 0]}><mesh><boxGeometry args={[1.45, slab.h, .08]} /><meshPhysicalMaterial color={i % 7 === 0 && session.archetype === "mnemonist" ? "#303638" : "#13191a"} metalness={.9} roughness={.24} emissive="#263033" emissiveIntensity={i % 4 === 0 ? .08 : .025} /></mesh><Edge position={[0, 0, .05]} scale={[.7, .02, .015]} opacity={i % 4 === 0 ? .55 : .18} /></group>)}
+    {slabs.map((slab, i) => mutations.voidAbsence && i === 9 ? null : <group key={i} position={[slab.x, slab.y, slab.z]} rotation={[0, (i % 2 ? -.04 : .035), mutations.gravityBent && i > 15 ? .11 : 0]}><mesh><boxGeometry args={[1.45, slab.h, .08]} /><meshPhysicalMaterial color={i % 7 === 0 && session.archetype === "mnemonist" ? "#303638" : "#13191a"} metalness={.9} roughness={.24} emissive="#263033" emissiveIntensity={i % 4 === 0 ? .08 : .025} /></mesh><Edge position={[0, 0, .05]} scale={[.7, .02, .015]} opacity={i % 4 === 0 ? .55 : .18} /></group>)}
+    {mutations.recoveredRecord && <group position={[4.1, 8.6, -2.8]} rotation={[0, -.2, .04]}><mesh><boxGeometry args={[2.2, 3.6, .12]} /><meshPhysicalMaterial color="#263033" metalness={.92} roughness={.2} emissive="#8b9798" emissiveIntensity={.16} transparent opacity={.7} /></mesh><Edge position={[0, 0, .08]} scale={[1.4, .035, .02]} opacity={.72} /></group>}
     <group position={[0, 0, 1.8]}>
       <mesh position={[0, 1.05, 0]} rotation={[-.16, 0, 0]}><boxGeometry args={[5.2, 2.1, 2.4]} /><meshPhysicalMaterial color="#0b0f10" metalness={.92} roughness={.24} /></mesh>
       <Edge position={[0, 2.1, -.42]} scale={[3.7, 1.05, .035]} opacity={.34 + progress.recordSearches.length * .035} />
@@ -68,7 +71,7 @@ function RecordVault({ reducedMotion, progress, session }: { reducedMotion: bool
   </Chamber>;
 }
 
-function SignalRoom({ reducedMotion, progress, session }: { reducedMotion: boolean; progress: FacilityProgress; session: RealitySnapshot }) {
+function SignalRoom({ reducedMotion, progress, session, mutations }: { reducedMotion: boolean; progress: FacilityProgress; session: RealitySnapshot; mutations: FacilityMutations }) {
   const dish = useRef<THREE.Group>(null);
   const wave = useRef<THREE.Group>(null);
   useFrame((state, delta) => {
@@ -79,9 +82,10 @@ function SignalRoom({ reducedMotion, progress, session }: { reducedMotion: boole
   return <Chamber floor={[25, 34]} fog={48}>
     <spotLight color="#c8d1d0" intensity={11} position={[0, 18, 2]} angle={.24} penumbra={.9} distance={42} />
     <pointLight color="#718184" intensity={4.5} position={[-6, 3, -6]} distance={17} />
-    <group ref={dish} position={[0, 9.5, -8]} rotation={[Math.PI / 2.45, 0, 0]}>
+    <group ref={dish} position={[mutations.signalTopology === "spatial" ? 2.2 : 0, 9.5, -8]} rotation={[Math.PI / 2.45, mutations.signalTopology === "neural" ? .42 : 0, mutations.temporalEarlyResponse ? -.12 : 0]}>
       {[3.2, 4.7, 6.3].map((r, i) => <mesh key={r} rotation={[i * .26, i * .4, 0]}><torusGeometry args={[r, i === 1 ? .13 : .055, 10, 88]} /><meshPhysicalMaterial color={i === 1 ? "#748083" : "#202729"} metalness={.94} roughness={.2} emissive="#465154" emissiveIntensity={.06} /></mesh>)}
       <mesh><coneGeometry args={[2.1, 5, 48, 1, true]} /><meshBasicMaterial color="#8c999a" transparent opacity={.055} side={THREE.DoubleSide} depthWrite={false} /></mesh>
+      {mutations.signalTopology && <mesh position={[0, 0, -2.8]}><torusGeometry args={[7.4, .045, 8, 96]} /><meshBasicMaterial color="#bdc6c5" transparent opacity={mutations.signalTopology === "temporal" ? .38 : .24} toneMapped={false} /></mesh>}
     </group>
     <group ref={wave} position={[0, 4.4, -1]}>
       {Array.from({ length: 28 }, (_, i) => { const x = (i - 13.5) * .38; const y = Math.sin(i * .82) * (session.archetype === "synaptic" ? 1.15 : .72); return <Edge key={i} position={[x, y, 0]} scale={[.24, .035, .035]} opacity={i % 4 === 0 ? .62 : .28} />; })}
@@ -96,7 +100,7 @@ function SignalRoom({ reducedMotion, progress, session }: { reducedMotion: boole
   </Chamber>;
 }
 
-function DeadSector({ reducedMotion, progress }: { reducedMotion: boolean; progress: FacilityProgress }) {
+function DeadSector({ reducedMotion, progress, mutations }: { reducedMotion: boolean; progress: FacilityProgress; mutations: FacilityMutations }) {
   const dust = useMemo(() => Array.from({ length: reducedMotion ? 20 : 48 }, (_, i) => [((i * 47) % 173) / 9 - 9.2, .5 + ((i * 31) % 97) / 11, -13 + ((i * 67) % 211) / 9] as [number, number, number]), [reducedMotion]);
   return <Chamber floor={[22, 31]} fog={36}>
     <spotLight color="#aeb8b8" intensity={7.5} position={[-6, 13, 7]} angle={.28} penumbra={.92} distance={31} />
@@ -106,7 +110,8 @@ function DeadSector({ reducedMotion, progress }: { reducedMotion: boolean; progr
       <mesh position={[0, 3.5, 0]}><cylinderGeometry args={[4.7, 5.6, 7, 12, 1, true]} /><meshPhysicalMaterial color="#090c0d" metalness={.92} roughness={.32} side={THREE.DoubleSide} /></mesh>
       <mesh position={[0, .03, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[2.8, 5.4, 12]} /><meshBasicMaterial color="#20282a" transparent opacity={.4} /></mesh>
       <mesh position={[0, .05, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[4.7, 4.78, 12]} /><meshBasicMaterial color="#9aa6a7" transparent opacity={.18} toneMapped={false} /></mesh>
-      {[-2.3, 2.3].map((x) => <Edge key={x} position={[x, 3.2, 2.55]} scale={[.045, 5.4, .03]} opacity={.14} />)}
+      {[-2.3, 2.3].map((x, index) => mutations.voidAbsence && index === 1 ? null : <Edge key={x} position={[x, 3.2, 2.55]} scale={[.045, 5.4, .03]} opacity={.14} />)}
+      {mutations.voidAbsence && <mesh position={[2.9, 3.1, .4]} rotation={[0, -.3, 0]}><planeGeometry args={[4.2, 7.2]} /><meshBasicMaterial color="#000000" transparent opacity={.96} depthWrite={false} /></mesh>}
       <InteractionVolume id="dead-sector-scan" position={[0, 2.5, 3.6]} size={[7.5, 5, 2]} />
     </group>
     {dust.map((position, i) => <mesh key={i} position={position}><sphereGeometry args={[i % 5 === 0 ? .025 : .012, 4, 3]} /><meshBasicMaterial color="#a8b1af" transparent opacity={.12} /></mesh>)}
@@ -115,7 +120,7 @@ function DeadSector({ reducedMotion, progress }: { reducedMotion: boolean; progr
   </Chamber>;
 }
 
-function ObservationDeck({ progress }: { progress: FacilityProgress }) {
+function ObservationDeck({ progress, mutations }: { progress: FacilityProgress; mutations: FacilityMutations }) {
   return <Chamber floor={[28, 24]} fog={96}>
     <hemisphereLight color="#8a9799" groundColor="#010202" intensity={.42} />
     <spotLight color="#d1d8d6" intensity={11} position={[0, 16, 6]} angle={.38} penumbra={.9} distance={68} />
@@ -134,19 +139,19 @@ function ObservationDeck({ progress }: { progress: FacilityProgress }) {
       <mesh position={[0, 2.7, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1.1, .06, 8, 48]} /><meshBasicMaterial color="#aab5b5" transparent opacity={.52} toneMapped={false} /></mesh>
       <InteractionVolume id="observation-instrument" position={[0, 2, 0]} size={[3.2, 4, 3.2]} />
     </group>
-    {progress.observationInstrumentUsed && <group position={[6.8, 8.8, -30]}><mesh><torusGeometry args={[2.4, .08, 8, 72]} /><meshBasicMaterial color="#b8aaa3" transparent opacity={.32} toneMapped={false} /></mesh><Edge position={[0, 0, 0]} scale={[.03, 9, .03]} opacity={.25} /></group>}
+    {progress.observationInstrumentUsed && <group position={[mutations.voidAbsence ? -5.8 : 6.8, mutations.temporalEarlyResponse ? 12.8 : 8.8, -30]}><mesh><torusGeometry args={[mutations.rareTopology ? 3.6 : 2.4, .08, 8, 72]} /><meshBasicMaterial color="#b8aaa3" transparent opacity={mutations.rareTopology ? .58 : .32} toneMapped={false} /></mesh><Edge position={[0, 0, 0]} scale={[.03, 9, .03]} opacity={.25} /></group>}
     <Portal id="return-record-vault" position={[-9, 0, 8.2]} rotation={Math.PI} open />
     <Portal id="return-nexus" position={[9, 0, 8.2]} rotation={Math.PI} open />
   </Chamber>;
 }
 
-function MaintenanceSpine({ progress, reducedMotion, scanner }: { progress: FacilityProgress; reducedMotion: boolean; scanner: boolean }) {
+function MaintenanceSpine({ progress, reducedMotion, scanner, mutations }: { progress: FacilityProgress; reducedMotion: boolean; scanner: boolean; mutations: FacilityMutations }) {
   const ribs = useRef<THREE.Group>(null);
   useFrame((state) => { if (ribs.current && !reducedMotion) ribs.current.position.y = Math.sin(state.clock.elapsedTime * .4) * .025; state.invalidate(); });
   return <Chamber floor={[9, 39]} fog={42}>
     <pointLight color="#879396" intensity={3.5} position={[0, 2, 7]} distance={15} />
     <pointLight color="#687578" intensity={2.4} position={[0, 2, -12]} distance={14} />
-    <group ref={ribs}>{Array.from({ length: 13 }, (_, i) => <group key={i} position={[0, 0, 12 - i * 2.55]}><mesh position={[-3.25, 2.5, 0]}><boxGeometry args={[.45, 5.2, .65]} /><meshPhysicalMaterial color="#101517" metalness={.9} roughness={.27} /></mesh><mesh position={[3.25, 2.5, 0]}><boxGeometry args={[.45, 5.2, .65]} /><meshPhysicalMaterial color="#101517" metalness={.9} roughness={.27} /></mesh><mesh position={[0, 5, 0]}><boxGeometry args={[6.9, .38, .65]} /><meshPhysicalMaterial color="#101517" metalness={.9} roughness={.27} /></mesh>{i % 3 === 0 && <Edge position={[0, 4.76, .34]} scale={[4.8, .035, .025]} opacity={.3} />}</group>)}</group>
+    <group ref={ribs}>{Array.from({ length: 13 }, (_, i) => <group key={i} position={[mutations.gravityBent ? Math.sin(i * .7) * .34 : 0, 0, 12 - i * (mutations.routeVariant === "maintenance" ? 2.15 : 2.55)]} rotation={[0, 0, mutations.gravityBent ? (i - 6) * .008 : 0]}><mesh position={[-3.25, 2.5, 0]}><boxGeometry args={[.45, 5.2, .65]} /><meshPhysicalMaterial color="#101517" metalness={.9} roughness={.27} /></mesh><mesh position={[3.25, 2.5, 0]}><boxGeometry args={[.45, 5.2, .65]} /><meshPhysicalMaterial color="#101517" metalness={.9} roughness={.27} /></mesh><mesh position={[0, 5, 0]}><boxGeometry args={[6.9, .38, .65]} /><meshPhysicalMaterial color="#101517" metalness={.9} roughness={.27} /></mesh>{i % 3 === 0 && <Edge position={[0, 4.76, .34]} scale={[4.8, .035, .025]} opacity={mutations.temporalEarlyResponse ? .52 : .3} />}</group>)}</group>
     <group position={[-2.2, 0, -5.8]}><mesh position={[0, 1.2, 0]}><boxGeometry args={[1.4, 2.4, 1.6]} /><meshPhysicalMaterial color="#0b0f10" metalness={.92} roughness={.24} /></mesh><Edge position={[0, 1.6, .82]} scale={[.7, .45, .03]} opacity={progress.unlockedShortcuts.includes("signal-spine") ? .46 : .18} /><InteractionVolume id="shortcut-control" position={[0, 1.3, .5]} size={[2.2, 2.8, 2.4]} /></group>
     <group position={[2.75, 2.4, -12.6]}><mesh><boxGeometry args={[.34, 4.8, 4.2]} /><meshPhysicalMaterial color="#070a0b" metalness={.9} roughness={.31} /></mesh>{(scanner || progress.signalResult) && <InteractionVolume id="hidden-passage" position={[-.55, 0, 0]} size={[1.5, 4.8, 4.4]} />}</group>
     <group position={[0, 4.3, 2.2]}><Edge position={[0, 0, 0]} scale={[progress.impossibleCorridorSeen ? 2.1 : 1.45, .055, .03]} opacity={.42} /><InteractionVolume id="corridor-marker" position={[0, -1.2, 0]} size={[4.5, 3.2, 1.6]} /></group>
@@ -156,10 +161,11 @@ function MaintenanceSpine({ progress, reducedMotion, scanner }: { progress: Faci
 }
 
 export function ArchiveFacility({ room, progress, reducedMotion, discoveredCount, session, gateOpening, scanner }: WorldProps) {
+  const mutations = useMemo(() => resolveFacilityMutations(progress.consequences), [progress.consequences]);
   if (room === "nexus") return <ArchiveNexus reducedMotion={reducedMotion} discoveredCount={discoveredCount} session={session} gateOpening={gateOpening} progress={progress} />;
-  if (room === "record-vault") return <RecordVault reducedMotion={reducedMotion} progress={progress} session={session} />;
-  if (room === "signal-room") return <SignalRoom reducedMotion={reducedMotion} progress={progress} session={session} />;
-  if (room === "dead-sector") return <DeadSector reducedMotion={reducedMotion} progress={progress} />;
-  if (room === "observation-deck") return <ObservationDeck progress={progress} />;
-  return <MaintenanceSpine progress={progress} reducedMotion={reducedMotion} scanner={scanner} />;
+  if (room === "record-vault") return <RecordVault reducedMotion={reducedMotion} progress={progress} session={session} mutations={mutations} />;
+  if (room === "signal-room") return <SignalRoom reducedMotion={reducedMotion} progress={progress} session={session} mutations={mutations} />;
+  if (room === "dead-sector") return <DeadSector reducedMotion={reducedMotion} progress={progress} mutations={mutations} />;
+  if (room === "observation-deck") return <ObservationDeck progress={progress} mutations={mutations} />;
+  return <MaintenanceSpine progress={progress} reducedMotion={reducedMotion} scanner={scanner} mutations={mutations} />;
 }

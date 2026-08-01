@@ -6,6 +6,7 @@ import type { FacilityProgress, FacilityRoom, NexusInteractionId } from "@/game/
 import type { NexusControlStore } from "@/game/NexusControlStore";
 import type { DeviceTier } from "@/hooks/useDeviceProfile";
 import type { RealitySnapshot } from "@/reality/realityTypes";
+import { resolveFacilityMutations } from "@/game/facilityMutations";
 
 const interactionCopy: Record<NexusInteractionId, { title: string; action: string; measure: string }> = {
   "observation-gate": { title: "OBSERVATION PROTOCOL", action: "BEGIN OBSERVATION", measure: "SECTOR ACCESS / 01–06" },
@@ -60,6 +61,7 @@ type NexusHudProps = {
 };
 
 export function NexusHUD({ entered, active, target, scanner, pointerLocked, tier, hasFinePointer, controls, session, tutorialVisible, notice, room, progress, objective, onEnter, onBegin, onArchive, onSystem, onInteract, onScanner }: NexusHudProps) {
+  const mutations = resolveFacilityMutations(progress.consequences);
   const look = useRef<{ x: number; y: number } | null>(null);
   const touch = tier !== "desktop" || !hasFinePointer;
   const setMove = (key: "forward" | "backward" | "left" | "right", value: boolean) => controls.setMovement(key, value);
@@ -82,7 +84,8 @@ export function NexusHUD({ entered, active, target, scanner, pointerLocked, tier
         <div className="text-right text-[7px] leading-5 tracking-[.25em] text-white/32">
           <p>{session.returningVisitor ? "OBSERVER 07 DETECTED" : "OBSERVER / UNREGISTERED"}</p>
           <p>SECTORS / 01–06</p>
-          <p className="text-white/18">ACTIVE COUNT / 7</p>
+          <p className={mutations.rareTopology ? "text-[#c1b2a8]/62" : "text-white/18"}>ACTIVE COUNT / {mutations.activeSectorCount}</p>
+          {mutations.temporalEarlyResponse && <p className="text-white/28">RESPONSE / PRE-AUTHORIZED</p>}
         </div>
       </div>
 
@@ -135,6 +138,7 @@ export function NexusHUD({ entered, active, target, scanner, pointerLocked, tier
 
 export function NexusTerminal({ open, session, progress, onClose, onArchive }: { open: boolean; session: RealitySnapshot; progress: FacilityProgress; onClose: () => void; onArchive: () => void }) {
   const [tab, setTab] = useState<"status" | "index" | "map" | "session">("status");
+  const mutations = resolveFacilityMutations(progress.consequences);
   if (!open) return null;
   return (
     <section className="fixed inset-0 z-[48] flex items-center justify-center bg-black/72 p-4 text-white backdrop-blur-md" aria-label="Nexus system terminal">
@@ -142,7 +146,7 @@ export function NexusTerminal({ open, session, progress, onClose, onArchive }: {
         <header className="flex items-start justify-between border-b border-white/12 pb-5"><div><p className="text-[8px] tracking-[.45em] text-white/34">SYSTEM NODE / NEXUS LOCAL</p><h2 className="mt-3 text-xl tracking-[.3em] sm:text-3xl">ARCHIVE SYSTEM</h2></div><button type="button" onClick={onClose} className="min-h-11 border-l border-white/20 pl-4 text-[8px] tracking-[.26em] text-white/58">ESC / BACK</button></header>
         <nav className="flex gap-5 overflow-x-auto border-b border-white/8 py-4">{(["status", "index", "map", "session"] as const).map((item) => <button key={item} type="button" onClick={() => setTab(item)} className={`min-h-10 text-[8px] tracking-[.27em] ${tab === item ? "text-white" : "text-white/32"}`}>{item.toUpperCase()}</button>)}</nav>
         <div className="min-h-72 py-7">
-          {tab === "status" && <div className="grid gap-6 sm:grid-cols-3"><TerminalMetric label="ARCHIVE STATUS" value="UNSTABLE" /><TerminalMetric label="ACTIVE SECTOR COUNT" value="7" muted /><TerminalMetric label="INDEXED SECTORS" value="01–06" /><TerminalMetric label="OBSERVATION" value={session.archiveUnlocked ? "COMPLETE" : "AVAILABLE"} /><TerminalMetric label="NEXUS RETURN" value="STABLE" /><TerminalMetric label="LOCAL GEOMETRY" value={session.voidProbeCount ? "INCOMPLETE" : "NOMINAL"} /></div>}
+          {tab === "status" && <div className="grid gap-6 sm:grid-cols-3"><TerminalMetric label="ARCHIVE STATUS" value={mutations.rareTopology ? "TOPOLOGY UNSTABLE" : "UNSTABLE"} /><TerminalMetric label="ACTIVE SECTOR COUNT" value={mutations.activeSectorCount} muted /><TerminalMetric label="INDEXED SECTORS" value="01–06" /><TerminalMetric label="OBSERVATION" value={session.archiveUnlocked ? "COMPLETE" : "AVAILABLE"} /><TerminalMetric label="NEXUS RETURN" value={mutations.gravityBent ? "MISALIGNED" : "STABLE"} /><TerminalMetric label="LOCAL GEOMETRY" value={mutations.voidAbsence ? "INCOMPLETE / NULL" : "NOMINAL"} /></div>}
           {tab === "index" && <div className="space-y-3">{[1,2,3,4,5,6].map((index) => <div key={index} className="flex justify-between border-b border-white/8 py-3 text-[8px] tracking-[.25em]"><span className="text-white/56">N-{String(index).padStart(2,"0")}</span><span className={index === 1 || index <= session.visitOrder.length ? "text-white/62" : "text-white/22"}>{index === 1 ? "OBSERVATION ACCESS" : index <= session.visitOrder.length ? "OBSERVED / RESTRICTED" : "UNRESOLVED"}</span></div>)}</div>}
           {tab === "map" && <div><p className="max-w-xl text-[9px] leading-6 tracking-[.22em] text-white/44">PHYSICAL NEXUS INSTALLATION AND ARCHIVE SECTOR MODEL SHARE SIX REGISTERED COORDINATES. FACILITY ROUTES ARE APPENDED ONLY AFTER PHYSICAL DISCOVERY.</p><div className="mt-6 grid gap-3 sm:grid-cols-2">{progress.discoveredRooms.map((room) => <p key={room} className="border-l border-white/12 pl-3 text-[7px] tracking-[.23em] text-white/48">{room.toUpperCase().replaceAll("-", " ")}</p>)}{progress.n07Clues.length > 0 && <p className="border-l border-white/18 pl-3 text-[7px] tracking-[.23em] text-white/32">N-07 / LOCATION UNRESOLVED</p>}</div><p className="mt-5 text-[7px] tracking-[.22em] text-white/24">SHORTCUTS / {progress.unlockedShortcuts.length} · UNRESOLVED ROUTES / {progress.hiddenPassageDiscovered ? 1 : 2}</p><button type="button" onClick={onArchive} className="mt-7 min-h-11 border border-white/20 px-5 text-[8px] tracking-[.27em] text-white/68">OPEN DETAILED MAP</button></div>}
           {tab === "session" && <div className="grid gap-6 sm:grid-cols-2"><TerminalMetric label="OBSERVER" value={session.returningVisitor ? "SUBJECT 07" : "UNREGISTERED"} /><TerminalMetric label="PROFILE" value={session.archetype.toUpperCase()} /><TerminalMetric label="DISCOVERIES" value={`${session.visitOrder.length} / 6 · ${progress.discoveredRooms.length} ROOMS`} /><TerminalMetric label="EVENT 13" value={session.event13Discovered ? "RECORDED" : "UNRESOLVED"} /><TerminalMetric label="N-07 CLUE ROUTES" value={String(progress.n07Clues.length)} /><TerminalMetric label="SIGNAL 7A" value={progress.signalResult ? "ISOLATED" : "UNRESOLVED"} /></div>}
