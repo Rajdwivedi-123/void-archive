@@ -51,7 +51,8 @@ export type NexusCheckpoint = {
 export type FacilityClue = "record-future" | "signal-7a" | "dead-sector" | "observation-sighting" | "maintenance-marking" | "corridor-label";
 
 export type FacilityProgress = {
-  version: 2;
+  version: 4;
+  epoch: number;
   location: FacilityRoom;
   pose: PlayerPose;
   discoveredRooms: FacilityRoom[];
@@ -64,6 +65,7 @@ export type FacilityProgress = {
   deadSectorDiscovered: boolean;
   observationInstrumentUsed: boolean;
   impossibleCorridorSeen: boolean;
+  investigation: import("./investigation").InvestigationProgress;
 };
 
 export const defaultNexusPose: PlayerPose = {

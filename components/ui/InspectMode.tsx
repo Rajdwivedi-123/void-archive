@@ -5,15 +5,21 @@ import { archiveData } from "@/artifacts/archiveData";
 import type { ArtifactId } from "@/artifacts/inspection";
 import type { ArtifactDefinition } from "@/artifacts/types";
 import { useReality, useRealitySnapshot } from "@/reality/RealityProvider";
+import type { InvestigationProgress, PuzzleId } from "@/game/investigation";
+import { ArtifactInvestigation, type PuzzleResolution } from "./InvestigationInterface";
 
 type InspectModeProps = {
   artifact: ArtifactDefinition | null;
   primary: number;
   scanner: boolean;
   reducedMotion: boolean;
+  investigation: InvestigationProgress;
   onPrimary: (value: number) => void;
   onScanner: (active: boolean) => void;
   onPointer: (x: number, y: number) => void;
+  onPuzzleStart: (puzzle: PuzzleId) => void;
+  onHypothesis: (hypothesis: string) => void;
+  onPuzzleResolve: (resolution: PuzzleResolution) => void;
   onExit: () => void;
 };
 
@@ -35,7 +41,7 @@ const spatialMeasure: Record<ArtifactId, string> = {
   "006": "REFRACTION DEPTH / 1.62 M",
 };
 
-export function InspectMode({ artifact, primary, scanner, reducedMotion, onPrimary, onScanner, onPointer, onExit }: InspectModeProps) {
+export function InspectMode({ artifact, primary, scanner, reducedMotion, investigation, onPrimary, onScanner, onPointer, onPuzzleStart, onHypothesis, onPuzzleResolve, onExit }: InspectModeProps) {
   const [activeHotspot, setActiveHotspot] = useState(0);
   const [futureAnnounced, setFutureAnnounced] = useState(false);
   const temporalTimerRef = useRef<number | null>(null);
@@ -131,12 +137,12 @@ export function InspectMode({ artifact, primary, scanner, reducedMotion, onPrima
         </button>
       ))}
 
-      <div className="pointer-events-none absolute inset-x-5 bottom-5 grid items-end gap-4 sm:inset-x-8 sm:bottom-8 sm:grid-cols-[1fr_19rem] lg:inset-x-10 lg:bottom-10">
+      <div className="pointer-events-none absolute inset-x-5 bottom-5 grid items-end gap-4 sm:inset-x-8 sm:bottom-8 sm:grid-cols-[1fr_23rem] lg:inset-x-10 lg:bottom-10">
         <div className={`max-w-md border-l border-white/16 bg-black/25 py-3 pl-4 backdrop-blur-[2px] ${artifact.id === "005" ? "reality-void-damaged" : artifact.id === "001" ? "reality-reactive-panel" : ""}`}>
           <p className="text-[7px] tracking-[0.36em] text-white/28">{data.hotspots[activeHotspot].label}</p>
           <p className="mt-2 text-[9px] leading-5 tracking-[0.18em] text-white/58">{data.hotspots[activeHotspot].note}</p>
         </div>
-        <div className="pointer-events-auto border-t border-white/15 bg-black/38 p-4 backdrop-blur-sm">
+        <div className="pointer-events-auto max-h-[72vh] overflow-y-auto overscroll-contain border-t border-white/15 bg-black/55 p-4 backdrop-blur-sm">
           <div className="flex items-center justify-between text-[7px] tracking-[0.28em] text-white/30"><span>{data.control}</span><span>{reducedMotion ? "STATIC" : "LIVE"}</span></div>
           {artifact.id === "001" ? (
             <div className="mt-4 flex items-center gap-5">
@@ -165,6 +171,7 @@ export function InspectMode({ artifact, primary, scanner, reducedMotion, onPrima
               {session.event13Discovered && <p className="text-[#c1b4aa]/65">EVENT 13 / MEMORY ORDER +1</p>}
             </div>
           )}
+          <ArtifactInvestigation artifact={artifact.id} primary={primary} scanner={scanner} reducedMotion={reducedMotion} progress={investigation} session={session} onPrimary={onPrimary} onScanner={onScanner} onStart={onPuzzleStart} onHypothesis={onHypothesis} onResolve={onPuzzleResolve} />
         </div>
       </div>
     </section>

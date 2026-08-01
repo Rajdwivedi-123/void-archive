@@ -7,8 +7,10 @@ import { useReality, useRealitySnapshot } from "@/reality/RealityProvider";
 import type { RealitySnapshot } from "@/reality/realityTypes";
 import type { GraphicsQuality } from "@/hooks/useGraphicsQuality";
 import { useArchiveAudio } from "@/audio/useArchiveAudio";
+import type { InvestigationProgress } from "@/game/investigation";
+import { InvestigationBoard } from "./InvestigationInterface";
 
-type ArchiveSection = "index" | "connections" | "sectors" | "system";
+type ArchiveSection = "index" | "investigation" | "connections" | "sectors" | "system";
 
 type ArchiveModeProps = {
   open: boolean;
@@ -17,10 +19,12 @@ type ArchiveModeProps = {
   postJourney: boolean;
   reducedMotion: boolean;
   graphicsQuality: GraphicsQuality;
+  investigation: InvestigationProgress;
   onClose: () => void;
   onSelect: (id: ArtifactId) => void;
   onRevisit: (id: ArtifactId) => void;
   onInspect: (id: ArtifactId) => void;
+  onConnectEvidence: (a: string, b: string) => void;
 };
 
 const mapPositions = [
@@ -57,10 +61,12 @@ export function ArchiveMode({
   postJourney,
   reducedMotion,
   graphicsQuality,
+  investigation,
   onClose,
   onSelect,
   onRevisit,
   onInspect,
+  onConnectEvidence,
 }: ArchiveModeProps) {
   const [section, setSection] = useState<ArchiveSection>("index");
   const [recordIndex, setRecordIndex] = useState(0);
@@ -88,7 +94,7 @@ export function ArchiveMode({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose, open]);
 
-  useEffect(() => { if (open) reality.recordArchiveView(section); }, [open, reality, section]);
+  useEffect(() => { if (open) reality.recordArchiveView(section === "investigation" ? "connections" : section); }, [open, reality, section]);
 
   return (
     <section
@@ -113,10 +119,10 @@ export function ArchiveMode({
           </div>
         </header>
 
-        <nav className="flex shrink-0 justify-between gap-2 overflow-hidden border-b border-white/8 py-4 text-[7px] tracking-[0.16em] text-white/35 sm:justify-start sm:gap-5 sm:overflow-x-auto sm:text-[8px] sm:tracking-[0.28em]" aria-label="Archive sections">
-          {(["index", "connections", "sectors", "system"] as ArchiveSection[]).map((item) => (
+        <nav className="flex shrink-0 justify-start gap-4 overflow-x-auto border-b border-white/8 py-4 text-[7px] tracking-[0.16em] text-white/35 sm:gap-5 sm:text-[8px] sm:tracking-[0.28em]" aria-label="Archive sections">
+          {(["index", "investigation", "connections", "sectors", "system"] as ArchiveSection[]).map((item) => (
             <button key={item} className={`min-h-10 whitespace-nowrap border-b transition-colors ${section === item ? "border-white/55 text-white/85" : "border-transparent hover:text-white/65"}`} onClick={() => setSection(item)} type="button">
-              {item === "index" ? "ARTIFACT INDEX" : item.toUpperCase()}
+              {item === "index" ? "ARTIFACT INDEX" : item === "investigation" ? "EVIDENCE" : item.toUpperCase()}
             </button>
           ))}
           <button className="ml-auto hidden min-h-10 whitespace-nowrap text-white/45 hover:text-white sm:block" onClick={onClose} type="button">RESUME JOURNEY</button>
@@ -178,6 +184,7 @@ export function ArchiveMode({
             </div>
           )}
 
+          {section === "investigation" && <InvestigationBoard progress={investigation} session={session} onConnect={onConnectEvidence} />}
           {section === "connections" && <ConnectionMap discoveredCount={discoveredCount} revealN07={postJourney || session.event13Discovered} mirrorDepth={session.mirrorObservationDepth} archetype={session.archetype} route={session.n07Route} onSelect={(id) => { selectArtifact(id); setSection("index"); }} />}
           {section === "sectors" && <SectorMap discoveredCount={discoveredCount} revealN07={postJourney || session.event13Discovered} voidMeasured={session.voidProbeCount > 0} onSelect={(id) => { selectArtifact(id); setSection("index"); }} />}
           {section === "system" && <SystemPanel discoveredCount={discoveredCount} postJourney={postJourney} session={session} quality={graphicsQuality} audioEnabled={audio.enabled} onReset={() => { if (window.confirm("Reset the local observer trace? This cannot be undone.")) { audio.cueInteraction("reset"); reality.resetTrace(); } }} />}
