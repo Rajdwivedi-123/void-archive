@@ -14,7 +14,7 @@ export const facilityPoses: Record<FacilityRoom, PlayerPose> = {
 
 export const facilityCollision: Record<FacilityRoom, FacilityCollision> = {
   nexus: {
-    minX: -13.8, maxX: 13.8, minZ: -17.2, maxZ: 15.5,
+    minX: -13.8, maxX: 13.8, minZ: -28.2, maxZ: 15.5,
     blockers: [
       { minX: -2.9, maxX: 2.9, minZ: -10.2, maxZ: -4.2 },
       { minX: -11.7, maxX: -5.1, minZ: -3.7, maxZ: 1.8 },

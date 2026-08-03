@@ -6,7 +6,7 @@ export function resolveFacilityMutations(state: ConsequenceState): FacilityMutat
   const rareTopology = state.event13Resolved && state.voidBoundaryExposed && state.signal7aResolution === "spatial" && state.memoryRestorationCommitted;
   const deep = Boolean(state.n07DiscoveryRoute) && (state.acceptedCorrelations.length > 0 || rareTopology);
   const subject = state.memoryRestorationCommitted || state.acceptedCorrelations.includes("M-FOREIGN|R-07-FUTURE");
-  const ending = state.committedEnding ?? (deep ? "n07-vector" : subject ? "subject-07" : "minimal");
+  const ending = state.committedEnding ?? (deep ? "n07-vector" : subject ? "subject-07" : "protocol");
   const responseLabels = [
     state.gravityOverdrive ? "NEXUS FIELD / MISALIGNED" : state.gravityStabilized ? "CONTAINMENT / COHERENT" : null,
     state.voidBoundaryExposed ? "LOCAL GEOMETRY / INCOMPLETE" : null,
@@ -29,7 +29,7 @@ export function resolveFacilityMutations(state: ConsequenceState): FacilityMutat
     deadSectorState: state.deadSectorInvestigated ? state.voidBoundaryExposed ? "silent" : "active" : "unresolved",
     rareTopology,
     ending,
-    activeSectorCount: ending === "minimal" ? "6 / 7" : "7 / 7",
+    activeSectorCount: ending === "protocol" ? "6 / 7" : "7 / 7",
     responseLabels,
   };
 }

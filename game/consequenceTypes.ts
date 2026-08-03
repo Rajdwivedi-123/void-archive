@@ -3,7 +3,18 @@ import type { FacilityRoom } from "./gameTypes";
 export type SignalResolution = "temporal" | "spatial" | "neural";
 export type NeuralStrategy = "intervention" | "observation";
 export type N07DiscoveryRoute = "temporal" | "spatial" | "memory";
-export type ConsequenceEnding = "minimal" | "subject-07" | "n07-vector";
+export type N07ApproachVector = "temporal" | "spatial" | "mnemonic" | "adaptive";
+export type N07FinalAction = "commit" | "reject" | "continue";
+export type ConsequenceEnding = "protocol" | "subject-07" | "n07-vector" | "archive-anomaly";
+export type EndingCommit = {
+  type: ConsequenceEnding;
+  vector: N07ApproachVector | null;
+  action: N07FinalAction;
+  archetype: string;
+  keyEvidence: string[];
+  facilityState: string;
+  sessionMarker: number;
+};
 
 export type ConsequenceState = {
   gravityOverdrive: boolean;
@@ -27,6 +38,8 @@ export type ConsequenceState = {
   minimalCompletion: boolean;
   observerArchetype: string;
   committedEnding: ConsequenceEnding | null;
+  endingCommit: EndingCommit | null;
+  n07ThresholdResolved: boolean;
   returningEcho: "gravity" | "mirror" | "void" | "memory" | null;
 };
 

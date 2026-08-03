@@ -16,8 +16,9 @@ export function ArchiveEnding({ stage, reducedMotion, onOpenArchive, consequence
   const complete = stage === "session-complete";
   const visible = resolving || complete;
   const mutations = resolveFacilityMutations(consequences);
-  const minimal = mutations.ending === "minimal";
-  const n07 = mutations.ending === "n07-vector";
+  const ending = consequences.endingCommit?.type ?? (consequences.memoryRestorationCommitted ? "subject-07" : "protocol");
+  const minimal = ending === "protocol";
+  const n07 = ending === "n07-vector" || ending === "archive-anomaly";
 
   return (
     <div

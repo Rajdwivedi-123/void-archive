@@ -6,6 +6,7 @@ import * as THREE from "three";
 import type { RealitySnapshot } from "@/reality/realityTypes";
 import type { FacilityProgress, NexusInteractionId } from "@/game/gameTypes";
 import { resolveFacilityMutations } from "@/game/facilityMutations";
+import { evaluateN07Access, type N07AccessEvaluation } from "@/game/n07Access";
 
 type Props = { reducedMotion: boolean; discoveredCount: number; session: RealitySnapshot; gateOpening: boolean; progress: FacilityProgress; target: NexusInteractionId | null };
 
@@ -92,6 +93,39 @@ function MaintenanceHatch({ available, active }: { available: boolean; active: b
   </group>;
 }
 
+function N07Gate({ evaluation, reducedMotion, active, committed }: { evaluation: N07AccessEvaluation; reducedMotion: boolean; active: boolean; committed: boolean }) {
+  const fragments = useRef<THREE.Group>(null);
+  const clock = useRef(0);
+  useFrame((state, delta) => {
+    if (!fragments.current || reducedMotion || !evaluation.alignmentReady) return;
+    clock.current += delta;
+    fragments.current.rotation.z = Math.sin(clock.current * .23) * (evaluation.vector === "temporal" ? .012 : .004);
+    fragments.current.position.y = Math.sin(clock.current * .42) * .06;
+    state.invalidate();
+  });
+  const glow = committed ? .8 : evaluation.thresholdReady ? .58 : evaluation.alignmentReady ? .34 : .14;
+  return <group position={[-8, 0, -24.5]} rotation={[0, .04, 0]}>
+    <mesh position={[0, -.12, 1.7]}><boxGeometry args={[12, .22, 10]} /><meshPhysicalMaterial color="#080b0c" metalness={.9} roughness={.31} /></mesh>
+    <group ref={fragments}>
+      <mesh position={[-3.55, 6.2, 0]} rotation={[0, .04, -.025]}><boxGeometry args={[2.15, 12.8, 2.1]} /><meshPhysicalMaterial color="#151b1d" metalness={.94} roughness={.24} emissive="#455052" emissiveIntensity={.1} /></mesh>
+      <mesh position={[3.35, 5.15, -.5]} rotation={[0, -.05, .035]}><boxGeometry args={[2.35, 10.7, 2.45]} /><meshPhysicalMaterial color="#121719" metalness={.95} roughness={.23} emissive="#414a4c" emissiveIntensity={.09} /></mesh>
+      <mesh position={[-.55, 12.2, -.15]} rotation={[0, 0, -.045]}><boxGeometry args={[5.4, 1.4, 2.2]} /><meshPhysicalMaterial color="#0a0d0e" metalness={.94} roughness={.25} /></mesh>
+      <mesh position={[.5, 6.4, .65]}><boxGeometry args={[.055, 10.8, .04]} /><meshBasicMaterial color="#c2cac8" transparent opacity={glow} toneMapped={false} /></mesh>
+      <mesh position={[-1.7, 8.3, .7]}><boxGeometry args={[3.8, .045, .04]} /><meshBasicMaterial color="#a9b4b3" transparent opacity={glow * .72} toneMapped={false} /></mesh>
+      <mesh position={[-4.62, 6.1, 1.08]} rotation={[0, .04, -.025]}><boxGeometry args={[.045, 10.7, .04]} /><meshBasicMaterial color="#aeb9b8" transparent opacity={glow * .52} toneMapped={false} /></mesh>
+      <mesh position={[4.5, 5.2, .75]} rotation={[0, -.05, .035]}><boxGeometry args={[.045, 8.8, .04]} /><meshBasicMaterial color="#c1b5ad" transparent opacity={glow * .44} toneMapped={false} /></mesh>
+      {evaluation.vector === "temporal" && [-.38, .38].map((z, index) => <mesh key={z} position={[index ? .8 : -.5, 6.7, z]}><boxGeometry args={[.035, 8.8, .04]} /><meshBasicMaterial color="#c7bbb3" transparent opacity={.16 + index * .1} toneMapped={false} /></mesh>)}
+      {evaluation.vector === "spatial" && <group rotation={[0, 0, -.11]}><mesh position={[1.8, 6.5, .2]}><boxGeometry args={[.045, 9.5, .05]} /><meshBasicMaterial color="#bcc5c4" transparent opacity={.4} /></mesh><mesh position={[-1.1, 3.1, .25]} rotation={[0, 0, Math.PI / 2]}><boxGeometry args={[.045, 5.2, .05]} /><meshBasicMaterial color="#bcc5c4" transparent opacity={.24} /></mesh></group>}
+      {evaluation.vector === "mnemonic" && <mesh position={[.95, 6.5, -.8]}><boxGeometry args={[6.9, 11.5, .06]} /><meshBasicMaterial color="#b6c0bf" transparent opacity={.055} depthWrite={false} /></mesh>}
+      {evaluation.vector === "adaptive" && Array.from({ length: 5 }, (_, index) => <mesh key={index} position={[-2.2 + index * 1.1, 2.2 + index * 1.8, .8]} rotation={[0, 0, index % 2 ? .25 : -.2]}><boxGeometry args={[.045, 2.4, .04]} /><meshBasicMaterial color="#c2cac8" transparent opacity={.2 + index * .07} /></mesh>)}
+    </group>
+    {evaluation.tier >= 3 && <><spotLight color="#b8c1c0" intensity={evaluation.tier >= 4 ? 11 : 5} position={[0, 12, 5]} angle={.28} penumbra={.86} distance={24} decay={2} /><mesh position={[0, 5.8, -.8]}><planeGeometry args={[5.8, 9.8]} /><meshBasicMaterial color="#8f9b9c" transparent opacity={committed ? .055 : .012 + evaluation.tier * .004} depthWrite={false} /></mesh></>}
+    {evaluation.alignmentReady && <><pointLight color="#aeb9b8" intensity={evaluation.thresholdReady ? 6 : 3} position={[-4.6, 7.5, 3.2]} distance={17} decay={2} /><pointLight color="#c2b6ae" intensity={evaluation.thresholdReady ? 5 : 2.5} position={[4.4, 9, 2.6]} distance={16} decay={2} /></>}
+    <InteractionVolume id="n07-gate" position={[0, 5.5, 2]} size={[8, 11, 4]} />
+    <WorldLabel primary="N-07" secondary={committed ? "COMMITMENT PRESERVED" : evaluation.thresholdReady ? `THRESHOLD / ${evaluation.vector.toUpperCase()}` : evaluation.alignmentReady ? "ALIGNMENT / INCOMPLETE" : "LOCATION / NONLOCAL"} position={[0, 13.8, .7]} width={5.8} active={active || evaluation.thresholdReady} />
+  </group>;
+}
+
 export function ArchiveNexus({ reducedMotion, discoveredCount, session, gateOpening, progress, target }: Props) {
   const mechanism = useRef<THREE.Group>(null);
   const gateLeft = useRef<THREE.Mesh>(null);
@@ -107,6 +141,7 @@ export function ArchiveNexus({ reducedMotion, discoveredCount, session, gateOpen
     { position: [13.2, 0, 7.1] as [number, number, number], rotation: -Math.PI / 2 },
   ], []);
   const mutations = useMemo(() => resolveFacilityMutations(progress.consequences), [progress.consequences]);
+  const n07 = useMemo(() => evaluateN07Access(progress, session.returningVisitor), [progress, session.returningVisitor]);
   const traceAcquired = progress.completedInteractions.includes("scanner-array") || Boolean(progress.signalResult);
 
   useFrame((state, delta) => {
@@ -134,7 +169,7 @@ export function ArchiveNexus({ reducedMotion, discoveredCount, session, gateOpen
       <spotLight color="#849599" intensity={traceAcquired ? 13 : 8} position={[7.5, 8.5, 12]} angle={.22} penumbra={.78} distance={28} decay={1.8} />
       <spotLight color="#9da8a9" intensity={5.5} position={[-8, 8, 11]} angle={.24} penumbra={.86} distance={26} decay={1.9} />
 
-      <mesh position={[0, -.22, -1]}><boxGeometry args={[31, .44, 38]} /><meshPhysicalMaterial color="#101416" metalness={.9} roughness={.28} clearcoat={.1} /></mesh>
+      <mesh position={[0, -.22, -5]}><boxGeometry args={[31, .44, 46]} /><meshPhysicalMaterial color="#101416" metalness={.9} roughness={.28} clearcoat={.1} /></mesh>
       <mesh position={[0, -.005, -2]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[7.5, 34]} /><meshBasicMaterial color="#111719" transparent opacity={.22} /></mesh>
       {[-7.6, 7.6].map((x) => <mesh key={x} position={[x, .02, -1]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[.035, 36]} /><meshBasicMaterial color="#a4afb0" transparent opacity={.32} toneMapped={false} /></mesh>)}
       {Array.from({ length: 18 }, (_, index) => <mesh key={index} position={[0, .025, 15 - index * 1.95]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[12, .018]} /><meshBasicMaterial color="#758083" transparent opacity={index % 4 === 0 ? .24 : .08} /></mesh>)}
@@ -149,7 +184,7 @@ export function ArchiveNexus({ reducedMotion, discoveredCount, session, gateOpen
 
       <mesh position={[0, -8.5, -31]}><boxGeometry args={[56, 1, 52]} /><meshBasicMaterial color="#000000" /></mesh>
       {[-17.2, 17.2].map((x, side) => <group key={x}>{Array.from({ length: 7 }, (_, index) => mutations.voidAbsence && side === 1 && index === 3 ? null : <Monolith key={index} position={[x + (side ? -.35 : .35) * (index % 2) + (mutations.gravityBent ? Math.sin(index * 1.7) * .55 : 0), 10 + index * 3.9, -17 + index * 7.4]} scale={[2.4 + (index % 3) * .7, 23 + index * 3.2, 3.6]} rotation={[0, side ? -.035 : .035, (side ? -.012 : .012) + (mutations.gravityBent ? (index - 3) * .009 : 0)]} />)}</group>)}
-      <Monolith position={[-6.4, 18, -28]} scale={[8.5, 38, 4.4]} rotation={[0, .07, -.035]} />
+      <Monolith position={[n07.tier > 0 ? -15.8 : -6.4, 18, -28]} scale={[8.5, 38, 4.4]} rotation={[0, .07, -.035]} />
       <Monolith position={[8.7, 24, -31]} scale={[11.5, 51, 5.8]} rotation={[0, -.04, .018]} />
       {mutations.memoryGhost && <group position={[5.8, 13, -17]} rotation={[0, -.28, 0]}><mesh><boxGeometry args={[4.8, 22, .12]} /><meshBasicMaterial color="#aab6b7" transparent opacity={.035} depthWrite={false} /></mesh><mesh position={[0, 0, .08]}><boxGeometry args={[.035, 15, .03]} /><meshBasicMaterial color="#b5c0c1" transparent opacity={.28} toneMapped={false} /></mesh></group>}
       {mutations.voidAbsence && <group position={[12.4, 11, -2]}><mesh><boxGeometry args={[5.8, 23, 5]} /><meshBasicMaterial color="#000000" /></mesh><mesh position={[-2.9, 0, 2.52]}><boxGeometry args={[.04, 18, .03]} /><meshBasicMaterial color="#b5c0c1" transparent opacity={.16} toneMapped={false} /></mesh></group>}
@@ -230,11 +265,7 @@ export function ArchiveNexus({ reducedMotion, discoveredCount, session, gateOpen
         <mesh position={[0, 4.38, 0]}><boxGeometry args={[3.75, .07, .08]} /><meshBasicMaterial color="#b9aaa2" transparent opacity={.34} toneMapped={false} /></mesh>
         <WorldLabel primary="N-07" secondary="COORDINATE / BEHIND WALL" position={[0, 5.25, .08]} width={3.8} active />
       </group>}
-      {progress.n07Clues.length > 0 && <group position={[-7.8, 5.4, -19.8]} rotation={[0, -.12, 0]}>
-        <mesh><torusGeometry args={[2.5, .08, 8, 72]} /><meshBasicMaterial color="#b6a8a1" transparent opacity={Math.min(.46, .16 + progress.n07Clues.length * .055)} toneMapped={false} /></mesh>
-        <mesh position={[0, 0, -.3]}><boxGeometry args={[4.2, 9.4, .7]} /><meshPhysicalMaterial color="#050708" metalness={.9} roughness={.3} transparent opacity={.82} /></mesh>
-        <InteractionVolume id="n07-gate" position={[0, 0, 1]} size={[5.2, 10, 2]} />
-      </group>}
+      {(n07.tier > 0 || session.returningVisitor) && <N07Gate evaluation={n07} reducedMotion={reducedMotion} active={target === "n07-gate"} committed={Boolean(progress.consequences.endingCommit)} />}
     </group>
   );
 }

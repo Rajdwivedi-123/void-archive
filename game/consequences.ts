@@ -8,7 +8,7 @@ export function createConsequenceState(): ConsequenceState {
     event13Resolved: false, neuralStrategy: null, neuralPredictionTriggered: false, voidBoundaryExposed: false, voidProbeDepth: 0,
     memoryReconstructionType: null, memoryRestorationCommitted: false, signal7aResolution: null, deadSectorInvestigated: false,
     hiddenPassageUsed: false, n07DiscoveryRoute: null, acceptedCorrelations: [], rejectedCorrelations: [], optionalRoomsVisited: [],
-    minimalCompletion: false, observerArchetype: "unresolved", committedEnding: null, returningEcho: null,
+    minimalCompletion: false, observerArchetype: "unresolved", committedEnding: null, endingCommit: null, n07ThresholdResolved: false, returningEcho: null,
   };
 }
 
@@ -31,7 +31,9 @@ export function sanitizeConsequences(saved?: Partial<ConsequenceState>): Consequ
     acceptedCorrelations: strings(saved?.acceptedCorrelations, 16),
     rejectedCorrelations: strings(saved?.rejectedCorrelations, 16),
     optionalRoomsVisited: rooms.filter((room) => saved?.optionalRoomsVisited?.includes(room)).filter((room) => room !== "nexus"),
-    committedEnding: saved?.committedEnding === "minimal" || saved?.committedEnding === "subject-07" || saved?.committedEnding === "n07-vector" ? saved.committedEnding : null,
+    committedEnding: (saved?.committedEnding as string) === "minimal" ? "protocol" : saved?.committedEnding === "protocol" || saved?.committedEnding === "subject-07" || saved?.committedEnding === "n07-vector" || saved?.committedEnding === "archive-anomaly" ? saved.committedEnding : null,
+    endingCommit: saved?.endingCommit && ["protocol", "subject-07", "n07-vector", "archive-anomaly"].includes(saved.endingCommit.type) ? saved.endingCommit : null,
+    n07ThresholdResolved: Boolean(saved?.n07ThresholdResolved),
     returningEcho: saved?.returningEcho === "gravity" || saved?.returningEcho === "mirror" || saved?.returningEcho === "void" || saved?.returningEcho === "memory" ? saved.returningEcho : null,
   };
 }

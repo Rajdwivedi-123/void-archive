@@ -186,6 +186,22 @@ a {
   outline-offset: 0.4rem;
 }
 
+.n07-ending-protocol {
+  background-image: repeating-linear-gradient(0deg, transparent 0 88px, rgb(255 255 255 / 0.025) 89px);
+}
+
+.n07-ending-subject-07 {
+  background-image: radial-gradient(circle at 50% 48%, rgb(184 195 193 / 0.08), transparent 34%), radial-gradient(circle at 50% 48%, transparent 0 21%, rgb(255 255 255 / 0.035) 21.2% 21.5%, transparent 21.7%);
+}
+
+.n07-ending-n07-vector {
+  background-image: linear-gradient(104deg, transparent 0 48.8%, rgb(188 199 197 / 0.07) 49% 49.15%, transparent 49.35%), linear-gradient(76deg, transparent 0 55%, rgb(173 158 149 / 0.045) 55.1% 55.25%, transparent 55.5%);
+}
+
+.n07-ending-archive-anomaly {
+  background-image: linear-gradient(91deg, transparent 0 48.4%, rgb(0 0 0 / 0.72) 48.5% 51.5%, transparent 51.6%), radial-gradient(ellipse at 50% 50%, rgb(178 160 150 / 0.055), transparent 48%);
+}
+
 @media (min-width: 1024px) {
   .archive-range-field {
     width: 1rem;
