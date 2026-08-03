@@ -13,6 +13,21 @@ const interactionCopy: Record<NexusInteractionId, { title: string; action: strin
   "archive-map": { title: "ARCHIVE MAP INSTALLATION", action: "OPEN ARCHIVE", measure: "SPATIAL INDEX / PARTIAL" },
   "system-terminal": { title: "SYSTEM NODE", action: "OPEN TERMINAL", measure: "LOCAL STATUS / AVAILABLE" },
   "scanner-array": { title: "MEASUREMENT ARRAY", action: "TOGGLE SCANNER", measure: "COORDINATE RETURN / STABLE" },
+  "nexus-scan-north": { title: "TRIANGULATION POSITION 01", action: "SCAN FROM POSITION", measure: "SIGNAL 7A / NORTH RETURN" },
+  "nexus-scan-east": { title: "TRIANGULATION POSITION 02", action: "SCAN FROM POSITION", measure: "SIGNAL 7A / EAST RETURN" },
+  "nexus-scan-west": { title: "TRIANGULATION POSITION 03", action: "SCAN FROM POSITION", measure: "SIGNAL 7A / WEST RETURN" },
+  "array-component-a": { title: "ARRAY COMPONENT A", action: "ROTATE ALIGNMENT", measure: "PHASE / MANUAL" },
+  "array-component-b": { title: "ARRAY COMPONENT B", action: "ROTATE ALIGNMENT", measure: "PHASE / MANUAL" },
+  "array-component-c": { title: "ARRAY COMPONENT C", action: "ROTATE ALIGNMENT", measure: "PHASE / MANUAL" },
+  "relay-alpha": { title: "CONTAINMENT RELAY A", action: "HOLD TO STABILIZE", measure: "LOAD / UNBALANCED" },
+  "relay-beta": { title: "CONTAINMENT RELAY B", action: "HOLD TO STABILIZE", measure: "LOAD / UNBALANCED" },
+  "relay-gamma": { title: "CONTAINMENT RELAY C", action: "HOLD TO STABILIZE", measure: "LOAD / UNBALANCED" },
+  "topology-current": { title: "CURRENT TOPOLOGY", action: "ROTATE PHYSICAL MODEL", measure: "SECTOR ALIGNMENT / CURRENT" },
+  "topology-recorded": { title: "RECORDED TOPOLOGY", action: "COMPARE MODEL", measure: "SECTOR ALIGNMENT / RECORDED" },
+  "nexus-ledge": { title: "UPPER ALIGNMENT", action: "OBSERVE CHAMBER", measure: "VERTICAL RETURN / +02.20 M" },
+  "signal-echo-north": { title: "SIGNAL ECHO 01", action: "FOLLOW MOVING RETURN", measure: "SIGNAL 7A / DISPLACED" },
+  "signal-echo-east": { title: "SIGNAL ECHO 02", action: "FOLLOW MOVING RETURN", measure: "SIGNAL 7A / DISPLACED" },
+  "signal-echo-west": { title: "SIGNAL ECHO 03", action: "FOLLOW MOVING RETURN", measure: "SIGNAL 7A / DISPLACED" },
   "restricted-sector": { title: "N-06 CONTAINMENT", action: "VERIFY ACCESS", measure: "ACCESS / RESTRICTED" },
   "event-seven": { title: "UNINDEXED STRUCTURE", action: "MEASURE", measure: "ACTIVE SECTOR COUNT / 7" },
   "route-record-vault": { title: "RECORD ACCESS", action: "ENTER VAULT", measure: "ROUTE / OPTIONAL" },
@@ -169,6 +184,22 @@ export function NexusHUD({ entered, active, target, scanner, pointerLocked, tier
       </div>}
     </div>
   );
+}
+
+export function NexusHoldControl({ relay, onCancel, onComplete }: { relay: "alpha" | "beta" | "gamma" | null; onCancel: () => void; onComplete: () => void }) {
+  const timer = useRef<number | null>(null);
+  const [holding, setHolding] = useState(false);
+  useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
+  if (!relay) return null;
+  const start = () => {
+    if (timer.current) return;
+    setHolding(true);
+    timer.current = window.setTimeout(() => { timer.current = null; setHolding(false); onComplete(); }, 1050);
+  };
+  const cancel = () => { if (timer.current) window.clearTimeout(timer.current); timer.current = null; setHolding(false); };
+  return <section className="fixed inset-0 z-[47] grid place-items-center bg-black/42 p-5 text-white backdrop-blur-[2px]" aria-label="Containment relay stabilization">
+    <div className="w-full max-w-sm border border-white/14 bg-[#030506]/92 p-6 text-center"><p className="text-[7px] tracking-[.36em] text-white/32">CONTAINMENT DRIFT / RELAY {relay.toUpperCase()}</p><h2 className="mt-4 text-lg tracking-[.27em]">STABILIZE LOAD</h2><p className="mt-4 text-[7px] leading-5 tracking-[.18em] text-white/36">Maintain contact until the mechanical response settles.</p><button type="button" onPointerDown={start} onPointerUp={cancel} onPointerCancel={cancel} onPointerLeave={cancel} onKeyDown={(event) => { if (event.key === " " || event.key === "Enter") start(); }} onKeyUp={cancel} className="relative mt-7 min-h-16 w-full overflow-hidden border border-white/25 text-[8px] tracking-[.3em] text-white/72"><span className={`absolute inset-y-0 left-0 bg-white/10 ${holding ? "w-full transition-[width] duration-[1050ms] ease-linear" : "w-0"}`} /><span className="relative">{holding ? "HOLD / STABILIZING" : "PRESS AND HOLD"}</span></button><button type="button" onClick={() => { cancel(); onCancel(); }} className="mt-3 min-h-10 px-4 text-[7px] tracking-[.22em] text-white/30">CANCEL</button></div>
+  </section>;
 }
 
 export function NexusTerminal({ open, session, progress, onClose, onArchive }: { open: boolean; session: RealitySnapshot; progress: FacilityProgress; onClose: () => void; onArchive: () => void }) {

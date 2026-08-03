@@ -23,7 +23,7 @@ import { useGraphicsQuality } from "@/hooks/useGraphicsQuality";
 import { AudioProvider } from "@/audio/AudioProvider";
 import { useArchiveAudio } from "@/audio/useArchiveAudio";
 import { SoundControl } from "./SoundControl";
-import { NexusHUD, NexusTerminal, NexusTransition } from "./NexusInterface";
+import { NexusHoldControl, NexusHUD, NexusTerminal, NexusTransition } from "./NexusInterface";
 import { FacilityTransition, ObservationInstrument, RecordSearch, SignalAnalysis } from "./FacilityInterface";
 import { EvidenceNotice, type PuzzleResolution } from "./InvestigationInterface";
 import { defaultNexusPose, type ExperienceMode, type FacilityClue, type FacilityProgress, type FacilityRoom, type NexusInteractionId, type PlayerPose } from "@/game/gameTypes";
@@ -38,6 +38,7 @@ import { evaluateN07Access } from "@/game/n07Access";
 import { N07Ending, N07Threshold } from "./N07Threshold";
 import { N07Completion, N07LevelHUD } from "./N07LevelInterface";
 import { n07AreaPoses, n07CausalOrder, type N07Area, type N07CausalEvent } from "@/game/n07Level";
+import { arrayTargets, createNexusGameplayProgress, relayOrder, type NexusRelayPoint, type NexusScanPoint } from "@/game/nexusGameplay";
 
 function stageArtifact(stage: string): ArtifactId | null {
   if (stage.startsWith("object-two")) return "002";
@@ -87,6 +88,7 @@ function VoidArchiveExperience() {
   const [n07EndingVisible, setN07EndingVisible] = useState(false);
   const [n07CompletionVisible, setN07CompletionVisible] = useState(false);
   const [qaReturning, setQaReturning] = useState(false);
+  const [relayHold, setRelayHold] = useState<NexusRelayPoint | null>(null);
   const [nexusControls] = useState(() => new NexusControlStore());
   const transitionTimerRef = useRef<number | null>(null);
   const noticeTimerRef = useRef<number | null>(null);
@@ -109,8 +111,9 @@ function VoidArchiveExperience() {
   const realityArtifact = inspectedId ?? (archiveOpen ? selectedId : experienceMode === "observation" ? stageArtifact(journeyStage) : null);
   const nexusDiscoveredCount = Math.max(discoveredCount, new Set(realitySession.visitOrder).size, postJourney ? 6 : 1);
   const n07Access = useMemo(() => evaluateN07Access(facilityProgress, realitySession.returningVisitor || qaReturning), [facilityProgress, qaReturning, realitySession.returningVisitor]);
-  const nexusActive = (experienceMode === "nexus" || experienceMode === "n07") && nexusEntered && !archiveOpen && !terminalOpen && !inspectedArtifact && !facilityModal && !routeTransition && !thresholdOpen && !n07EndingVisible && !n07CompletionVisible;
-  const facilityObjective = facilityProgress.consequences.endingCommit ? "OBSERVATION CONTINUES" : n07Access.thresholdReady ? "APPROACH N-07 THRESHOLD" : n07Access.alignmentReady ? "COMPLETE N-07 ALIGNMENT" : facilityProgress.investigation.investigationStage === "n07-vector" ? "VERIFY ACCESS VECTOR" : facilityProgress.investigation.investigationStage === "correlation" || facilityProgress.investigation.investigationStage === "subject-identification" ? "LOCATE UNREGISTERED SECTOR" : facilityProgress.investigation.investigationStage === "contradiction" ? "IDENTIFY SHARED CORRELATION" : facilityProgress.signalResult ? "VERIFY NONLOCAL ROUTE" : facilityProgress.recordSearches.length ? "LOCATE SIGNAL SOURCE" : facilityProgress.completedInteractions.includes("scanner-array") ? "ENTER SIGNAL ROOM" : "TRACE SIGNAL 7A";
+  const nexusActive = (experienceMode === "nexus" || experienceMode === "n07") && nexusEntered && !archiveOpen && !terminalOpen && !inspectedArtifact && !facilityModal && !routeTransition && !thresholdOpen && !n07EndingVisible && !n07CompletionVisible && !relayHold;
+  const investigationObjective = facilityProgress.consequences.endingCommit ? "OBSERVATION CONTINUES" : n07Access.thresholdReady ? "APPROACH N-07 THRESHOLD" : n07Access.alignmentReady ? "COMPLETE N-07 ALIGNMENT" : facilityProgress.investigation.investigationStage === "n07-vector" ? "VERIFY ACCESS VECTOR" : facilityProgress.investigation.investigationStage === "correlation" || facilityProgress.investigation.investigationStage === "subject-identification" ? "LOCATE UNREGISTERED SECTOR" : facilityProgress.investigation.investigationStage === "contradiction" ? "IDENTIFY SHARED CORRELATION" : facilityProgress.signalResult ? "VERIFY NONLOCAL ROUTE" : facilityProgress.recordSearches.length ? "LOCATE SIGNAL SOURCE" : "CONTINUE FACILITY INVESTIGATION";
+  const facilityObjective = facilityRoom !== "nexus" ? investigationObjective : !facilityProgress.nexusGameplay.wakeComplete ? "APPROACH CENTRAL MECHANISM" : !facilityProgress.nexusGameplay.triangulated ? `TRACE SIGNAL 7A / ${facilityProgress.nexusGameplay.scanPoints.length} OF 3` : !facilityProgress.nexusGameplay.arrayCalibrated ? "CALIBRATE MEASUREMENT ARRAY" : !facilityProgress.nexusGameplay.relayStabilized ? "SIGNAL ROUTE ACTIVE / CONTAINMENT DRIFT OPTIONAL" : !facilityProgress.nexusGameplay.topologyAligned ? "COMPARE CURRENT AND RECORDED TOPOLOGY" : investigationObjective;
 
   useLenisScroll(reducedMotion || experienceMode !== "observation" || archiveOpen || Boolean(inspectedArtifact));
 
@@ -122,6 +125,7 @@ function VoidArchiveExperience() {
       setFacilityProgress(checkpoint);
       setFacilityRoom(room);
       setNexusPose(forceIntro ? defaultNexusPose : checkpoint.pose);
+      setTutorialVisible(!checkpoint.nexusGameplay.tutorialComplete);
       if (!forceIntro && (room !== "nexus" || checkpoint.discoveredRooms.length > 1)) setNexusEntered(true);
       setFacilityHydrated(true);
     });
@@ -433,6 +437,41 @@ function VoidArchiveExperience() {
       audio.cueInteraction("subject");
       showNexusNotice(`NEURAL ROUTE / ${target.replaceAll("-", " ").toUpperCase()} PRESELECTED`);
     }
+    const scanPointByTarget: Partial<Record<NexusInteractionId, NexusScanPoint>> = { "nexus-scan-north": "north", "nexus-scan-east": "east", "nexus-scan-west": "west" };
+    const scanPoint = scanPointByTarget[target];
+    if (scanPoint) {
+      if (!nexusScanner) { showNexusNotice("TRIANGULATION REQUIRES ACTIVE SCANNER"); return; }
+      const nextCount = facilityProgress.nexusGameplay.scanPoints.includes(scanPoint) ? facilityProgress.nexusGameplay.scanPoints.length : facilityProgress.nexusGameplay.scanPoints.length + 1;
+      updateFacility((current) => { const scanPoints = current.nexusGameplay.scanPoints.includes(scanPoint) ? current.nexusGameplay.scanPoints : [...current.nexusGameplay.scanPoints, scanPoint]; return { ...current, nexusGameplay: { ...current.nexusGameplay, scanPoints, triangulated: scanPoints.length === 3, eventsSeen: scanPoints.length === 3 && !current.nexusGameplay.eventsSeen.includes("route-shift") ? [...current.nexusGameplay.eventsSeen, "route-shift"] : current.nexusGameplay.eventsSeen } }; });
+      audio.cueInteraction(nextCount === 3 ? "subject" : "scanner"); showNexusNotice(nextCount === 3 ? "SIGNAL 7A TRIANGULATED / ARRAY COMPONENTS RELEASED" : `SIGNAL RETURN LOCKED / ${nextCount} OF 3`); return;
+    }
+    const echoPointByTarget: Partial<Record<NexusInteractionId, NexusScanPoint>> = { "signal-echo-north": "north", "signal-echo-east": "east", "signal-echo-west": "west" };
+    const echoPoint = echoPointByTarget[target];
+    if (echoPoint) {
+      if (!nexusScanner) { showNexusNotice("MOVING RETURN LOST / SCANNER REQUIRED"); return; }
+      const nextCount = facilityProgress.nexusGameplay.signalEchoSteps.includes(echoPoint) ? facilityProgress.nexusGameplay.signalEchoSteps.length : facilityProgress.nexusGameplay.signalEchoSteps.length + 1;
+      updateFacility((current) => { const signalEchoSteps = current.nexusGameplay.signalEchoSteps.includes(echoPoint) ? current.nexusGameplay.signalEchoSteps : [...current.nexusGameplay.signalEchoSteps, echoPoint]; return { ...current, nexusGameplay: { ...current.nexusGameplay, signalEchoSteps, signalEchoResolved: signalEchoSteps.length === 3, eventsSeen: signalEchoSteps.length === 3 && !current.nexusGameplay.eventsSeen.includes("signal-echo") ? [...current.nexusGameplay.eventsSeen, "signal-echo"] : current.nexusGameplay.eventsSeen }, completedInteractions: signalEchoSteps.length === 3 && !current.completedInteractions.includes("signal-echo") ? [...current.completedInteractions, "signal-echo"] : current.completedInteractions }; });
+      audio.cueInteraction(nextCount === 3 ? "record" : "scanner"); showNexusNotice(nextCount === 3 ? "SIGNAL ECHO RESOLVED / HIDDEN RETURN RECORDED" : `SIGNAL ECHO MOVED / FOLLOW RETURN ${nextCount} OF 3`); return;
+    }
+    const arrayIndexByTarget: Partial<Record<NexusInteractionId, number>> = { "array-component-a": 0, "array-component-b": 1, "array-component-c": 2 };
+    const arrayIndex = arrayIndexByTarget[target];
+    if (arrayIndex !== undefined) {
+      if (!facilityProgress.nexusGameplay.triangulated) { showNexusNotice("ARRAY LOCKED / TRIANGULATE SIGNAL FIRST"); return; }
+      const alignment = [...facilityProgress.nexusGameplay.arrayAlignment] as [number, number, number]; alignment[arrayIndex] = (alignment[arrayIndex] + 1) % 4;
+      const calibrated = alignment.every((step, index) => step === arrayTargets[index]);
+      updateFacility((current) => ({ ...current, nexusGameplay: { ...current.nexusGameplay, arrayAlignment: alignment, arrayCalibrated: calibrated, tutorialComplete: calibrated || current.nexusGameplay.tutorialComplete, eventsSeen: calibrated && !current.nexusGameplay.eventsSeen.includes("containment-drift") ? [...current.nexusGameplay.eventsSeen, "containment-drift"] : current.nexusGameplay.eventsSeen }, completedInteractions: calibrated && !current.completedInteractions.includes("array-calibrated") ? [...current.completedInteractions, "array-calibrated"] : current.completedInteractions }));
+      if (calibrated) setTutorialVisible(false);
+      audio.cueInteraction(calibrated ? "subject" : "record"); showNexusNotice(calibrated ? "ARRAY 7A COHERENT / SIGNAL ROOM ROUTE ACTIVE" : `COMPONENT ${String.fromCharCode(65 + arrayIndex)} / PHASE ${alignment[arrayIndex]} OF 3`); return;
+    }
+    const relayByTarget: Partial<Record<NexusInteractionId, NexusRelayPoint>> = { "relay-alpha": "alpha", "relay-beta": "beta", "relay-gamma": "gamma" };
+    if (relayByTarget[target]) { releasePointer(); setRelayHold(relayByTarget[target] ?? null); return; }
+    if (target === "topology-current") { updateFacility((current) => ({ ...current, nexusGameplay: { ...current.nexusGameplay, topologyCompared: true } })); audio.cueInteraction("archive"); showNexusNotice("CURRENT TOPOLOGY ROTATED / RECORDED MODEL AVAILABLE"); return; }
+    if (target === "topology-recorded") {
+      if (!facilityProgress.nexusGameplay.topologyCompared) { showNexusNotice("COMPARE CURRENT TOPOLOGY FIRST"); return; }
+      updateFacility((current) => ({ ...current, nexusGameplay: { ...current.nexusGameplay, topologyAligned: true, eventsSeen: current.nexusGameplay.eventsSeen.includes("impossible-corridor") ? current.nexusGameplay.eventsSeen : [...current.nexusGameplay.eventsSeen, "impossible-corridor"] }, completedInteractions: current.completedInteractions.includes("topology-aligned") ? current.completedInteractions : [...current.completedInteractions, "topology-aligned"] }));
+      audio.cueInteraction("subject"); showNexusNotice("IMPOSSIBLE SECTOR ALIGNMENT / CORRIDOR PRESENT FOR 04.731 SEC"); return;
+    }
+    if (target === "nexus-ledge") { updateFacility((current) => ({ ...current, nexusGameplay: { ...current.nexusGameplay, ledgeVisited: true } })); audio.cueInteraction("record"); showNexusNotice("UPPER ALIGNMENT / CENTRAL SCALE RECORDED · SEVENTH AXIS VISIBLE"); return; }
     if (target === "observation-gate") { startObservation(); return; }
     if (target === "archive-map") { releasePointer(); openArchive(); return; }
     if (target === "system-terminal") { releasePointer(); audio.cueInteraction("inspect"); setTerminalOpen(true); return; }
@@ -440,14 +479,14 @@ function VoidArchiveExperience() {
       toggleNexusScanner();
       updateFacility((current) => ({ ...current, completedInteractions: current.completedInteractions.includes("scanner-array") ? current.completedInteractions : [...current.completedInteractions, "scanner-array"] }));
       audio.cueInteraction("scanner");
-      showNexusNotice("SIGNAL 7A DETECTED / RETURN 43 M · SOURCE INSIDE FACILITY");
+      showNexusNotice(facilityProgress.nexusGameplay.triangulated ? "ARRAY 7A / MANUAL COMPONENT CONTROL ACTIVE" : "SIGNAL 7A DETECTED / OCCUPY THREE MEASUREMENT POSITIONS");
       return;
     }
     if (target === "restricted-sector") { audio.cueInteraction("record"); showNexusNotice("N-06 / ACCESS RESTRICTED"); return; }
     if (target === "route-record-vault") { audio.cueInteraction("archive"); travelTo("record-vault"); return; }
-    if (target === "route-signal-room") { audio.cueInteraction("scanner"); if (facilityProgress.consequences.hiddenPassageUsed) { showNexusNotice("MAIN SIGNAL ROUTE / DISPLACED · MAINTENANCE APPROACH AVAILABLE"); travelTo("maintenance-spine"); } else travelTo("signal-room"); return; }
+    if (target === "route-signal-room") { if (!facilityProgress.nexusGameplay.arrayCalibrated) { showNexusNotice("SIGNAL ROUTE INACTIVE / CALIBRATE ARRAY 7A"); return; } audio.cueInteraction("scanner"); if (facilityProgress.consequences.hiddenPassageUsed) { showNexusNotice("MAIN SIGNAL ROUTE / DISPLACED · MAINTENANCE APPROACH AVAILABLE"); travelTo("maintenance-spine"); } else travelTo("signal-room"); return; }
     if (target === "route-observation-deck") { audio.cueInteraction("inspect"); travelTo("observation-deck"); return; }
-    if (target === "route-maintenance-spine") { audio.cueInteraction("record"); travelTo("maintenance-spine"); return; }
+    if (target === "route-maintenance-spine") { if (!facilityProgress.nexusGameplay.relayStabilized && !facilityProgress.hiddenPassageDiscovered) { showNexusNotice("LOWER ACCESS DISPLACED / STABILIZE CONTAINMENT RELAYS"); return; } audio.cueInteraction("record"); travelTo("maintenance-spine"); return; }
     if (target === "route-dead-sector") { audio.cueInteraction("record"); travelTo("dead-sector"); return; }
     if (target === "return-nexus") { travelTo("nexus"); return; }
     if (target === "return-record-vault") { travelTo("record-vault"); return; }
@@ -496,7 +535,34 @@ function VoidArchiveExperience() {
       releasePointer(); setThresholdOpen(true); return;
     }
     setNexusScanner(true); audio.cueInteraction("scanner"); showNexusNotice("ACTIVE SECTOR COUNT / 7 · INDEX RETURN / 01–06");
-  }, [addFacilityClue, audio, facilityProgress.consequences.endingCommit, facilityProgress.consequences.hiddenPassageUsed, facilityProgress.consequences.neuralPredictionTriggered, facilityProgress.consequences.neuralStrategy, facilityProgress.impossibleCorridorSeen, facilityProgress.n07.checkpointPose, facilityProgress.n07.completed, facilityProgress.n07.entered, facilityProgress.signalResult, handleN07Interact, n07Access, nexusScanner, openArchive, reality, registerEvidence, releasePointer, showNexusNotice, startObservation, toggleNexusScanner, travelTo, updateFacility]);
+  }, [addFacilityClue, audio, facilityProgress.consequences.endingCommit, facilityProgress.consequences.hiddenPassageUsed, facilityProgress.consequences.neuralPredictionTriggered, facilityProgress.consequences.neuralStrategy, facilityProgress.hiddenPassageDiscovered, facilityProgress.impossibleCorridorSeen, facilityProgress.n07.checkpointPose, facilityProgress.n07.completed, facilityProgress.n07.entered, facilityProgress.nexusGameplay, facilityProgress.signalResult, handleN07Interact, n07Access, nexusScanner, openArchive, reality, registerEvidence, releasePointer, showNexusNotice, startObservation, toggleNexusScanner, travelTo, updateFacility]);
+  const completeRelay = useCallback(() => {
+    const relay = relayHold;
+    if (!relay) return;
+    setRelayHold(null);
+    const expected = relayOrder[facilityProgress.nexusGameplay.relaySequence.length];
+    if (relay !== expected) {
+      updateFacility((current) => ({ ...current, nexusGameplay: { ...current.nexusGameplay, relaySequence: [] } }));
+      audio.cueInteraction("record");
+      showNexusNotice("RELAY PHASE REJECTED / SEQUENCE RESET");
+      return;
+    }
+    const relaySequence = [...facilityProgress.nexusGameplay.relaySequence, relay];
+    const stabilized = relaySequence.length === relayOrder.length;
+    updateFacility((current) => ({
+      ...current,
+      nexusGameplay: {
+        ...current.nexusGameplay,
+        relaySequence,
+        relayStabilized: stabilized,
+        containmentDriftResolved: stabilized,
+        eventsSeen: stabilized && !current.nexusGameplay.eventsSeen.includes("containment-drift") ? [...current.nexusGameplay.eventsSeen, "containment-drift"] : current.nexusGameplay.eventsSeen,
+      },
+      completedInteractions: stabilized && !current.completedInteractions.includes("containment-relays") ? [...current.completedInteractions, "containment-relays"] : current.completedInteractions,
+    }));
+    audio.cueInteraction(stabilized ? "subject" : "scanner");
+    showNexusNotice(stabilized ? "CONTAINMENT DRIFT STABILIZED / LOWER ROUTE RESTORED" : `RELAY ${relay.toUpperCase()} HELD / ${relaySequence.length} OF 3`);
+  }, [audio, facilityProgress.nexusGameplay.relaySequence, relayHold, showNexusNotice, updateFacility]);
   const commitN07Ending = useCallback((commit: EndingCommit) => {
     const enterLevel = commit.action !== "reject" && n07Access.tier >= 4;
     updateFacility((current) => ({ ...current, completedInteractions: current.completedInteractions.includes("n07-threshold") ? current.completedInteractions : [...current.completedInteractions, "n07-threshold"], consequences: { ...current.consequences, committedEnding: commit.type, endingCommit: commit, n07ThresholdResolved: true, minimalCompletion: commit.type === "protocol" }, n07: enterLevel ? { ...current.n07, entered: true, vector: commit.vector ?? n07Access.vector, area: "threshold", checkpointPose: n07AreaPoses.threshold } : current.n07 }), true);
@@ -554,6 +620,52 @@ function VoidArchiveExperience() {
     setFacilityRoom("nexus"); setNexusPose({ position: [-8, 1.72, -7.5], yaw: 0, pitch: .12 });
     if (scenario.endsWith("ending")) setN07EndingVisible(true);
   }, [realitySession.archetype, updateFacility]);
+  const runNexusGameplayQa = useCallback((scenario: "fresh" | "triangulated" | "calibrated" | "relays" | "topology" | "post") => {
+    updateFacility((current) => {
+      const gameplay = createNexusGameplayProgress();
+      gameplay.wakeComplete = scenario !== "fresh";
+      gameplay.eventsSeen = gameplay.wakeComplete ? ["wake"] : [];
+      if (["triangulated", "calibrated", "relays", "topology", "post"].includes(scenario)) {
+        gameplay.scanPoints = ["north", "east", "west"];
+        gameplay.triangulated = true;
+        gameplay.eventsSeen.push("route-shift");
+      }
+      if (["calibrated", "relays", "topology", "post"].includes(scenario)) {
+        gameplay.arrayAlignment = [...arrayTargets];
+        gameplay.arrayCalibrated = true;
+        gameplay.tutorialComplete = true;
+      }
+      if (["relays", "topology", "post"].includes(scenario)) {
+        gameplay.relaySequence = [...relayOrder];
+        gameplay.relayStabilized = true;
+        gameplay.containmentDriftResolved = true;
+        gameplay.eventsSeen.push("containment-drift");
+      }
+      if (["topology", "post"].includes(scenario)) {
+        gameplay.topologyCompared = true;
+        gameplay.topologyAligned = true;
+        gameplay.eventsSeen.push("impossible-corridor");
+      }
+      return { ...current, nexusGameplay: gameplay, n07: scenario === "post" ? { ...current.n07, completed: true } : current.n07 };
+    }, true);
+    setNexusEntered(true);
+    setTutorialVisible(scenario === "fresh");
+    setFacilityRoom("nexus");
+    setExperienceMode("nexus");
+  }, [updateFacility]);
+  const runNexusViewQa = useCallback((view: "center" | "array" | "map" | "ledge" | "signal" | "record" | "relay" | "n07") => {
+    const poses: Record<typeof view, PlayerPose> = {
+      center: { position: [0.8, 1.72, 13.5], yaw: 0, pitch: .09 },
+      array: { position: [-.8, 1.72, 17.2], yaw: -.42, pitch: -.04 },
+      map: { position: [-4.8, 1.72, 4.4], yaw: .57, pitch: -.05 },
+      ledge: { position: [9, 3.92, -16], yaw: 2.14, pitch: .1 },
+      signal: { position: [8, 1.72, 11.2], yaw: .63, pitch: .02 },
+      record: { position: [-8, 1.72, 11.2], yaw: -.63, pitch: .02 },
+      relay: { position: [-8, 1.72, 8.7], yaw: .5, pitch: .04 },
+      n07: { position: [-8, 1.72, -18], yaw: 0, pitch: .24 },
+    };
+    setNexusPose(poses[view]);
+  }, []);
   const handleNexusPose = useCallback((pose: PlayerPose) => {
     setNexusPose(pose);
     if (!facilityHydrated || resettingFacilityRef.current) return;
@@ -677,10 +789,17 @@ function VoidArchiveExperience() {
       <InspectMode artifact={inspectedArtifact} primary={inspectionPrimary} scanner={scannerActive} reducedMotion={reducedMotion} investigation={facilityProgress.investigation} onPrimary={handlePrimary} onScanner={handleScanner} onPointer={handleInspectionPointer} onPuzzleStart={handlePuzzleStart} onHypothesis={handleHypothesis} onPuzzleResolve={handlePuzzleResolve} onExit={() => setInspectedId(null)} />
       <RealityEffects artifact={interactionHidden ? realityArtifact : stageArtifact(journeyStage)} primary={inspectionPrimary} freezeActive={freezeActive} reducedMotion={reducedMotion} />
       <SoundControl active={!isLoading && introComplete} mode={archiveOpen ? "archive" : inspectedArtifact ? "inspect" : experienceMode === "nexus" || experienceMode === "n07" ? "nexus" : "journey"} />
-      {experienceMode === "nexus" && <NexusHUD entered={nexusEntered} active={nexusActive} target={nexusTarget} scanner={nexusScanner} pointerLocked={pointerLocked} tier={tier} hasFinePointer={hasFinePointer} controls={nexusControls} session={realitySession} tutorialVisible={tutorialVisible} notice={nexusNotice} room={facilityRoom} progress={facilityProgress} objective={facilityObjective} onEnter={() => { setNexusEntered(true); setTutorialVisible(true); }} onBegin={startObservation} onArchive={openArchive} onSystem={() => { releasePointer(); setTerminalOpen(true); }} onInteract={() => { if (nexusTarget) handleNexusInteract(nexusTarget); }} onScanner={toggleNexusScanner} />}
+      {experienceMode === "nexus" && <NexusHUD entered={nexusEntered} active={nexusActive} target={nexusTarget} scanner={nexusScanner} pointerLocked={pointerLocked} tier={tier} hasFinePointer={hasFinePointer} controls={nexusControls} session={realitySession} tutorialVisible={tutorialVisible} notice={nexusNotice} room={facilityRoom} progress={facilityProgress} objective={facilityObjective} onEnter={() => {
+        setNexusEntered(true);
+        setTutorialVisible(!facilityProgress.nexusGameplay.tutorialComplete);
+        updateFacility((current) => ({ ...current, nexusGameplay: { ...current.nexusGameplay, wakeComplete: true, eventsSeen: current.nexusGameplay.eventsSeen.includes("wake") ? current.nexusGameplay.eventsSeen : [...current.nexusGameplay.eventsSeen, "wake"] } }));
+        audio.cueInteraction("subject");
+        showNexusNotice("CENTRAL MECHANISM / ONLINE · SIGNAL 7A UNRESOLVED");
+      }} onBegin={startObservation} onArchive={openArchive} onSystem={() => { releasePointer(); setTerminalOpen(true); }} onInteract={() => { if (nexusTarget) handleNexusInteract(nexusTarget); }} onScanner={toggleNexusScanner} />}
       {experienceMode === "n07" && <N07LevelHUD progress={facilityProgress.n07} target={nexusTarget} tier={tier} controls={nexusControls} notice={nexusNotice} onInteract={() => { if (nexusTarget) handleNexusInteract(nexusTarget); }} />}
       {experienceMode === "nexus" && facilityRoom !== "nexus" && !facilityModal && !archiveOpen && !terminalOpen && <button type="button" onClick={() => travelTo("nexus")} className="fixed bottom-20 left-1/2 z-[43] min-h-10 -translate-x-1/2 border border-white/10 bg-black/36 px-4 text-[7px] tracking-[.24em] text-white/34 backdrop-blur-sm">ACCESSIBILITY RETURN / NEXUS</button>}
       <NexusTerminal open={terminalOpen} session={realitySession} progress={facilityProgress} onClose={() => setTerminalOpen(false)} onArchive={() => { setTerminalOpen(false); openArchive(); }} />
+      <NexusHoldControl relay={relayHold} onCancel={() => setRelayHold(null)} onComplete={completeRelay} />
       <RecordSearch open={facilityModal === "record"} progress={facilityProgress} session={realitySession} onClose={() => setFacilityModal(null)} onSearch={handleRecordSearch} />
       <SignalAnalysis open={facilityModal === "signal"} session={realitySession} complete={Boolean(facilityProgress.signalResult)} onClose={() => setFacilityModal(null)} onComplete={handleSignalComplete} />
       <ObservationInstrument open={facilityModal === "instrument"} session={realitySession} onClose={() => setFacilityModal(null)} onObserve={handleObservationSighting} />
@@ -692,6 +811,7 @@ function VoidArchiveExperience() {
       <NexusTransition visible={experienceMode === "transition"} returning={returningToNexus} />
       {process.env.NODE_ENV !== "production" && <ObserverDebugPanel />}
       {process.env.NODE_ENV !== "production" && <N07DebugPanel onScenario={runN07Qa} returning={qaReturning} onReturning={() => setQaReturning((current) => !current)} onThreshold={() => setThresholdOpen(true)} onLevelAction={handleNexusInteract} />}
+      {process.env.NODE_ENV !== "production" && <NexusGameplayDebugPanel onScenario={runNexusGameplayQa} onView={runNexusViewQa} />}
       {process.env.NODE_ENV !== "production" && <FacilityDebugPanel room={facilityRoom} progress={facilityProgress} onTravel={travelTo} onInteract={() => handleNexusInteract(facilityRoom === "record-vault" ? "record-search" : facilityRoom === "signal-room" ? "signal-analysis" : facilityRoom === "dead-sector" ? "dead-sector-scan" : facilityRoom === "observation-deck" ? "observation-instrument" : facilityRoom === "maintenance-spine" ? "hidden-passage" : "archive-map")} onCorridor={() => handleNexusInteract("corridor-marker")} onReset={() => { resettingFacilityRef.current = true; clearFacilityProgress(); const fresh = { ...createFacilityProgress(), epoch: Date.now() }; saveFacilityProgress(fresh, true); setFacilityProgress(fresh); setFacilityRoom("nexus"); setNexusPose(facilityPoses.nexus); window.setTimeout(() => { saveFacilityProgress(fresh, true); resettingFacilityRef.current = false; }, 120); }} onUnlock={() => updateFacility((current) => ({ ...current, signalResult: current.signalResult ?? "QA / ISOLATED", hiddenPassageDiscovered: true, unlockedShortcuts: ["signal-spine"], n07Clues: ["record-future", "signal-7a", "maintenance-marking"] }))} />}
       {process.env.NODE_ENV !== "production" && <InvestigationDebugPanel progress={facilityProgress.investigation} onInspect={(id) => seekArtifact(id, true)} onEvidence={(id) => registerEvidence(id)} onArchive={openArchive} onReset={() => updateInvestigation(() => createInvestigationProgress())} />}
       {process.env.NODE_ENV !== "production" && <ConsequenceDebugPanel state={facilityProgress.consequences} onSet={(consequences) => updateFacility((current) => ({ ...current, consequences }))} onArchive={openArchive} onRoom={travelTo} />}
@@ -720,6 +840,19 @@ function ConsequenceDebugPanel({ state, onSet, onArchive, onRoom }: { state: Con
   };
   const setSignal = (signal7aResolution: SignalResolution) => onSet({ ...state, signal7aResolution, n07DiscoveryRoute: signal7aResolution === "temporal" ? "temporal" : signal7aResolution === "spatial" ? "spatial" : state.n07DiscoveryRoute });
   return <><aside className="fixed left-3 top-3 z-[74] w-64 border border-white/20 bg-black/92 p-3 text-white" aria-label="Consequence QA controls"><p className="text-[7px] tracking-[.27em] text-white/42">CONSEQUENCE QA / DEV ONLY</p><p className="mt-2 text-[7px] tracking-[.16em] text-white/60">{state.committedEnding?.toUpperCase() ?? "LIVE"} · {state.signal7aResolution?.toUpperCase() ?? "NO SIGNAL"}</p><div className="mt-3 grid grid-cols-2 gap-1">{(["minimal", "intervention", "cartographer", "chronologist"] as const).map((run) => <button key={run} type="button" onClick={() => scenario(run)} className="min-h-8 border border-white/12 text-[6px] tracking-[.13em] text-white/48">RUN / {run.toUpperCase()}</button>)}</div><div className="mt-2 grid grid-cols-2 gap-1"><button type="button" onClick={() => onSet({ ...state, gravityStabilized: true, gravityOverdrive: false })} className="min-h-8 border border-white/12 text-[6px] text-white/48">GRAVITY STABLE</button><button type="button" onClick={() => onSet({ ...state, gravityOverdrive: true, gravityStabilized: false })} className="min-h-8 border border-white/12 text-[6px] text-white/48">GRAVITY OVERDRIVE</button><button type="button" onClick={() => onSet({ ...state, mirrorImpossibleFeedSelected: true })} className="min-h-8 border border-white/12 text-[6px] text-white/48">MIRROR CORRECT</button><button type="button" onClick={() => onSet({ ...state, mirrorImpossibleFeedSelected: false })} className="min-h-8 border border-white/12 text-[6px] text-white/48">MIRROR FALSE</button><button type="button" onClick={() => onSet({ ...state, event13Resolved: true, temporalSequenceChoice: "pre-response" })} className="min-h-8 border border-white/12 text-[6px] text-white/48">EVENT 13</button><button type="button" onClick={() => onSet({ ...state, neuralStrategy: state.neuralStrategy === "intervention" ? "observation" : "intervention", neuralPredictionTriggered: true })} className="min-h-8 border border-white/12 text-[6px] text-white/48">NEURAL ROUTE</button><button type="button" onClick={() => onSet({ ...state, voidBoundaryExposed: true, voidProbeDepth: 3 })} className="min-h-8 border border-white/12 text-[6px] text-white/48">VOID EXPOSED</button><button type="button" onClick={() => onSet({ ...state, memoryRestorationCommitted: true, memoryReconstructionType: "QA RESTORATION" })} className="min-h-8 border border-white/12 text-[6px] text-white/48">MEMORY WRITEBACK</button></div><div className="mt-2 grid grid-cols-3 gap-1">{(["temporal", "spatial", "neural"] as SignalResolution[]).map((signal) => <button key={signal} type="button" onClick={() => setSignal(signal)} className="min-h-8 border border-white/12 text-[6px] text-white/48">{signal.toUpperCase()}</button>)}</div><div className="mt-2 flex gap-1"><button type="button" onClick={onArchive} className="min-h-8 flex-1 border border-white/12 text-[6px] text-white/48">RESPONSE MAP</button><button type="button" onClick={() => setEndingPreview((current) => !current)} className="min-h-8 border border-white/12 px-2 text-[6px] text-white/48">ENDING</button><button type="button" onClick={() => onRoom("nexus")} className="min-h-8 border border-white/12 px-2 text-[6px] text-white/48">NEXUS</button><button type="button" onClick={() => setHidden(true)} className="min-h-8 border border-white/12 px-2 text-[6px] text-white/48">HIDE</button></div></aside>{endingPreview && <ArchiveEnding stage="session-complete" reducedMotion consequences={state} onOpenArchive={() => { setEndingPreview(false); onArchive(); }} />}</>;
+}
+
+function NexusGameplayDebugPanel({ onScenario, onView }: { onScenario: (scenario: "fresh" | "triangulated" | "calibrated" | "relays" | "topology" | "post") => void; onView: (view: "center" | "array" | "map" | "ledge" | "signal" | "record" | "relay" | "n07") => void }) {
+  const [hidden, setHidden] = useState(false);
+  const enabled = useSyncExternalStore(
+    () => () => undefined,
+    () => process.env.NODE_ENV !== "production" && new URLSearchParams(location.search).has("nexus-gameplay-qa"),
+    () => false,
+  );
+  if (!enabled || hidden) return null;
+  const scenarios = ["fresh", "triangulated", "calibrated", "relays", "topology", "post"] as const;
+  const views = ["center", "array", "map", "ledge", "signal", "record", "relay", "n07"] as const;
+  return <aside className="fixed bottom-3 left-3 z-[74] w-56 border border-white/18 bg-black/92 p-3 text-white" aria-label="Nexus gameplay QA controls"><div className="flex items-center justify-between"><p className="text-[7px] tracking-[.25em] text-white/42">NEXUS GAMEPLAY QA / DEV ONLY</p><button type="button" onClick={() => setHidden(true)} className="min-h-7 px-2 text-[6px] text-white/30">HIDE</button></div><div className="mt-3 grid grid-cols-2 gap-1">{scenarios.map((scenario) => <button key={scenario} type="button" onClick={() => onScenario(scenario)} className="min-h-8 border border-white/12 text-[6px] tracking-[.12em] text-white/48">{scenario.toUpperCase()}</button>)}</div><div className="mt-2 grid grid-cols-3 gap-1">{views.map((view) => <button key={view} type="button" onClick={() => onView(view)} className="min-h-7 border border-white/8 text-[6px] tracking-[.1em] text-white/36">{view.toUpperCase()}</button>)}</div></aside>;
 }
 
 function InvestigationDebugPanel({ progress, onInspect, onEvidence, onArchive, onReset }: { progress: InvestigationProgress; onInspect: (id: ArtifactId) => void; onEvidence: (id: string) => void; onArchive: () => void; onReset: () => void }) {

@@ -26,6 +26,12 @@ function blocked(room: PlayableSpace, x: number, z: number) {
   return playableCollision[room].blockers.some((box) => x > box.minX - .42 && x < box.maxX + .42 && z > box.minZ - .42 && z < box.maxZ + .42);
 }
 
+function floorHeight(room: PlayableSpace, x: number, z: number) {
+  if (room !== "nexus" || x < 6.1 || z > -5.8) return 1.72;
+  if (z >= -13) return 1.72 + THREE.MathUtils.clamp((-z - 5.8) / 7.2, 0, 1) * 2.2;
+  return 3.92;
+}
+
 function interactionFrom(object: THREE.Object3D | null): NexusInteractionId | null {
   let current = object;
   while (current) {
@@ -44,6 +50,7 @@ export function FirstPersonController({ active, tier, reducedMotion, controls, i
   const activeRef = useRef(active);
   const poseKey = useRef("");
   const poseClock = useRef(0);
+  const bobPhase = useRef(0);
   const keys = useRef({ forward: false, backward: false, left: false, right: false, sprint: false });
   const vectorsRef = useRef({ forward: new THREE.Vector3(), right: new THREE.Vector3(), desired: new THREE.Vector3(), next: new THREE.Vector3() });
   const raycasterRef = useRef(new THREE.Raycaster());
@@ -121,20 +128,23 @@ export function FirstPersonController({ active, tier, reducedMotion, controls, i
     if (keys.current.right || touch.right) vectors.desired.add(vectors.right);
     if (keys.current.left || touch.left) vectors.desired.sub(vectors.right);
     const moving = vectors.desired.lengthSq() > 0;
-    if (moving) vectors.desired.normalize().multiplyScalar((keys.current.sprint || touch.sprint ? 4.25 : 2.35));
-    velocity.current.x = THREE.MathUtils.damp(velocity.current.x, vectors.desired.x, moving ? 7 : 9, delta);
-    velocity.current.z = THREE.MathUtils.damp(velocity.current.z, vectors.desired.z, moving ? 7 : 9, delta);
+    if (moving) vectors.desired.normalize().multiplyScalar((keys.current.sprint || touch.sprint ? 3.9 : 2.55));
+    velocity.current.x = THREE.MathUtils.damp(velocity.current.x, vectors.desired.x, moving ? 9 : 12, delta);
+    velocity.current.z = THREE.MathUtils.damp(velocity.current.z, vectors.desired.z, moving ? 9 : 12, delta);
     vectors.next.copy(state.camera.position);
     const bounds = playableCollision[room];
     const nextX = THREE.MathUtils.clamp(vectors.next.x + velocity.current.x * delta, bounds.minX, bounds.maxX);
     if (!blocked(room, nextX, vectors.next.z)) vectors.next.x = nextX;
     const nextZ = THREE.MathUtils.clamp(vectors.next.z + velocity.current.z * delta, bounds.minZ, bounds.maxZ);
     if (!blocked(room, vectors.next.x, nextZ)) vectors.next.z = nextZ;
-    vectors.next.y = 1.72;
+    const baseHeight = floorHeight(room, vectors.next.x, vectors.next.z);
+    bobPhase.current += moving && !reducedMotion ? delta * (keys.current.sprint || touch.sprint ? 10 : 7.2) : delta * 2;
+    const bob = moving && !reducedMotion ? Math.sin(bobPhase.current) * .012 : 0;
+    vectors.next.y = THREE.MathUtils.damp(vectors.next.y, baseHeight + bob, reducedMotion ? 18 : 10, delta);
     state.camera.position.copy(vectors.next);
 
     raycaster.setFromCamera(new THREE.Vector2(0, 0), state.camera);
-    raycaster.far = 4.6;
+    raycaster.far = 5.2;
     const hit = raycaster.intersectObjects(scene.children, true).find((entry) => interactionFrom(entry.object));
     const nextTarget = hit ? interactionFrom(hit.object) : null;
     if (nextTarget !== targetRef.current) { targetRef.current = nextTarget; onTarget(nextTarget); }

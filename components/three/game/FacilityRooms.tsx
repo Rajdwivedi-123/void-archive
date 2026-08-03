@@ -163,7 +163,7 @@ function MaintenanceSpine({ progress, reducedMotion, scanner, mutations }: { pro
 
 export function ArchiveFacility({ room, progress, reducedMotion, discoveredCount, session, gateOpening, scanner, target }: WorldProps) {
   const mutations = useMemo(() => resolveFacilityMutations(progress.consequences), [progress.consequences]);
-  if (room === "nexus") return <ArchiveNexus reducedMotion={reducedMotion} discoveredCount={discoveredCount} session={session} gateOpening={gateOpening} progress={progress} target={target} />;
+  if (room === "nexus") return <ArchiveNexus reducedMotion={reducedMotion} discoveredCount={discoveredCount} session={session} gateOpening={gateOpening} progress={progress} target={target} scanner={scanner} />;
   if (room === "record-vault") return <RecordVault reducedMotion={reducedMotion} progress={progress} session={session} mutations={mutations} />;
   if (room === "signal-room") return <SignalRoom reducedMotion={reducedMotion} progress={progress} session={session} mutations={mutations} />;
   if (room === "dead-sector") return <DeadSector reducedMotion={reducedMotion} progress={progress} mutations={mutations} />;

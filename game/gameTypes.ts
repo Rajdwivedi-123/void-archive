@@ -8,6 +8,21 @@ export type NexusInteractionId =
   | "archive-map"
   | "system-terminal"
   | "scanner-array"
+  | "nexus-scan-north"
+  | "nexus-scan-east"
+  | "nexus-scan-west"
+  | "array-component-a"
+  | "array-component-b"
+  | "array-component-c"
+  | "relay-alpha"
+  | "relay-beta"
+  | "relay-gamma"
+  | "topology-current"
+  | "topology-recorded"
+  | "nexus-ledge"
+  | "signal-echo-north"
+  | "signal-echo-east"
+  | "signal-echo-west"
   | "restricted-sector"
   | "event-seven"
   | "route-record-vault"
@@ -68,7 +83,7 @@ export type NexusCheckpoint = {
 export type FacilityClue = "record-future" | "signal-7a" | "dead-sector" | "observation-sighting" | "maintenance-marking" | "corridor-label";
 
 export type FacilityProgress = {
-  version: 6;
+  version: 7;
   epoch: number;
   location: FacilityRoom;
   pose: PlayerPose;
@@ -85,6 +100,7 @@ export type FacilityProgress = {
   investigation: import("./investigation").InvestigationProgress;
   consequences: import("./consequenceTypes").ConsequenceState;
   n07: import("./n07Level").N07LevelProgress;
+  nexusGameplay: import("./nexusGameplay").NexusGameplayProgress;
 };
 
 export const defaultNexusPose: PlayerPose = {

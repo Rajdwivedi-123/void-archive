@@ -7,8 +7,9 @@ import type { RealitySnapshot } from "@/reality/realityTypes";
 import type { FacilityProgress, NexusInteractionId } from "@/game/gameTypes";
 import { resolveFacilityMutations } from "@/game/facilityMutations";
 import { evaluateN07Access, type N07AccessEvaluation } from "@/game/n07Access";
+import { arrayTargets, relayOrder, type NexusGameplayProgress, type NexusLightingState } from "@/game/nexusGameplay";
 
-type Props = { reducedMotion: boolean; discoveredCount: number; session: RealitySnapshot; gateOpening: boolean; progress: FacilityProgress; target: NexusInteractionId | null };
+type Props = { reducedMotion: boolean; discoveredCount: number; session: RealitySnapshot; gateOpening: boolean; progress: FacilityProgress; target: NexusInteractionId | null; scanner: boolean };
 
 const graphite = new THREE.Color("#111719");
 const silver = new THREE.Color("#879194");
@@ -93,6 +94,62 @@ function MaintenanceHatch({ available, active }: { available: boolean; active: b
   </group>;
 }
 
+function FloorStation({ id, position, label, active, complete }: { id: NexusInteractionId; position: [number, number, number]; label: string; active: boolean; complete: boolean }) {
+  return <group position={position}>
+    <mesh position={[0, .035, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[.72, .9, 24]} /><meshBasicMaterial color="#bbc5c4" transparent opacity={complete ? .62 : active ? .48 : .22} toneMapped={false} /></mesh>
+    <mesh position={[0, .03, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[.7, 24]} /><meshBasicMaterial color="#5e6b6e" transparent opacity={active ? .16 : .06} /></mesh>
+    <InteractionVolume id={id} position={[0, 1.5, 0]} size={[2.2, 3, 2.2]} />
+    {active && <WorldLabel primary={label} secondary={complete ? "MEASUREMENT / LOCKED" : "MEASUREMENT / POSITION"} position={[.55, 2.2, -1.5]} width={.95} active />}
+  </group>;
+}
+
+function MeasurementArray({ gameplay, target, reducedMotion }: { gameplay: NexusGameplayProgress; target: NexusInteractionId | null; reducedMotion: boolean }) {
+  const assembly = useRef<THREE.Group>(null);
+  useFrame((state, delta) => {
+    if (!assembly.current) return;
+    assembly.current.position.y = reducedMotion ? 0 : Math.sin(state.clock.elapsedTime * .35) * .035;
+    assembly.current.rotation.y = THREE.MathUtils.damp(assembly.current.rotation.y, gameplay.arrayCalibrated ? -.32 : .08, 3, delta);
+  });
+  return <group position={[2.7, 0, 9.3]}>
+    <group ref={assembly}>
+      <mesh position={[0, 1.9, 0]}><cylinderGeometry args={[.14, .44, 3.8, 8]} /><meshPhysicalMaterial color="#161d1f" metalness={.92} roughness={.22} /></mesh>
+      {gameplay.arrayAlignment.map((step, index) => <group key={index} position={[0, 3.4 + index * .62, 0]} rotation={[Math.PI / 2 + index * .28, step * Math.PI / 2, index * .22]}>
+        <mesh><torusGeometry args={[.72 + index * .32, index === 1 ? .07 : .045, 8, 48]} /><meshBasicMaterial color="#b8c3c3" transparent opacity={step === arrayTargets[index] ? .82 : .38} toneMapped={false} /></mesh>
+        <mesh position={[.72 + index * .32, 0, 0]}><boxGeometry args={[.24, .12, .12]} /><meshBasicMaterial color="#d4dcda" transparent opacity={.74} toneMapped={false} /></mesh>
+      </group>)}
+    </group>
+    {([-1.35, 0, 1.35] as const).map((x, index) => <group key={x} position={[x, 0, .9]}><mesh position={[0, .72, 0]}><cylinderGeometry args={[.28, .42, 1.44, 8]} /><meshPhysicalMaterial color="#0c1112" metalness={.94} roughness={.24} /></mesh><mesh position={[0, 1.48, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[.2, .34, 12]} /><meshBasicMaterial color="#bdc7c6" transparent opacity={gameplay.arrayAlignment[index] === arrayTargets[index] ? .72 : .25} toneMapped={false} /></mesh><InteractionVolume id={(["array-component-a", "array-component-b", "array-component-c"] as NexusInteractionId[])[index]} position={[0, 1, .4]} size={[1.1, 2, 1.4]} /></group>)}
+    <WorldLabel primary="ARRAY 7A" secondary={gameplay.arrayCalibrated ? "ALIGNMENT / COHERENT" : gameplay.triangulated ? "MANUAL CALIBRATION / ACTIVE" : "TRIANGULATION / REQUIRED"} position={[0, 6.3, .2]} width={3.2} active={gameplay.arrayCalibrated || target?.startsWith("array-component")} />
+  </group>;
+}
+
+function NexusActivities({ gameplay, scanner, target }: { gameplay: NexusGameplayProgress; scanner: boolean; target: NexusInteractionId | null }) {
+  const scanIds: NexusInteractionId[] = gameplay.arrayCalibrated && !gameplay.signalEchoResolved ? ["signal-echo-north", "signal-echo-east", "signal-echo-west"] : ["nexus-scan-north", "nexus-scan-east", "nexus-scan-west"];
+  const scanComplete = gameplay.arrayCalibrated && !gameplay.signalEchoResolved ? gameplay.signalEchoSteps : gameplay.scanPoints;
+  return <group>
+    {([[0, 0, 11.2], [9.7, 0, -8.2], [-9.7, 0, -8.2]] as [number, number, number][]).map((position, index) => <FloorStation key={scanIds[index]} id={scanIds[index]} position={position} label={`SCAN ${String(index + 1).padStart(2, "0")}`} active={scanner || target === scanIds[index]} complete={scanComplete.includes((["north", "east", "west"] as const)[index])} />)}
+    {([[-9.7, 0, 5.4], [9.7, 0, 5.4], [0, 0, -15.4]] as [number, number, number][]).map((position, index) => <group key={index} position={position}>
+      <mesh position={[0, .85, 0]}><cylinderGeometry args={[.38, .6, 1.7, 8]} /><meshPhysicalMaterial color="#171e20" metalness={.93} roughness={.25} emissive="#667376" emissiveIntensity={gameplay.relaySequence.includes(relayOrder[index]) ? .2 : .075} /></mesh>
+      <mesh position={[0, 1.76, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[.25, .42, 12]} /><meshBasicMaterial color="#c4cecc" transparent opacity={gameplay.relaySequence.includes(relayOrder[index]) ? .74 : .26} toneMapped={false} /></mesh>
+      <mesh position={[0, .045, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[1.25, 24]} /><meshBasicMaterial color="#8f9da0" transparent opacity={target === (["relay-alpha", "relay-beta", "relay-gamma"] as NexusInteractionId[])[index] ? .13 : .055} depthWrite={false} /></mesh>
+      {target === (["relay-alpha", "relay-beta", "relay-gamma"] as NexusInteractionId[])[index] && <pointLight color="#b4c0c0" intensity={4.2} distance={7} decay={2} position={[0, 2.8, 1.2]} />}
+      <InteractionVolume id={(["relay-alpha", "relay-beta", "relay-gamma"] as NexusInteractionId[])[index]} position={[0, 1.25, 0]} size={[1.5, 2.5, 1.5]} />
+      <WorldLabel primary={`RELAY ${String.fromCharCode(65 + index)}`} secondary={gameplay.relayStabilized ? "CONTAINMENT / STABLE" : "HOLD / STABILIZE"} position={[0, 2.7, -.5]} width={2.4} active={target === (["relay-alpha", "relay-beta", "relay-gamma"] as NexusInteractionId[])[index]} />
+    </group>)}
+  </group>;
+}
+
+function UpperLedge({ visited, active }: { visited: boolean; active: boolean }) {
+  return <group>
+    <mesh position={[9, 1.05, -10.8]} rotation={[-.16, 0, 0]}><boxGeometry args={[5.4, .32, 10]} /><meshPhysicalMaterial color="#101517" metalness={.92} roughness={.27} /></mesh>
+    <mesh position={[9, 2.12, -16]}><boxGeometry args={[7.6, .36, 8]} /><meshPhysicalMaterial color="#0c1112" metalness={.92} roughness={.25} /></mesh>
+    {[6.1, 11.9].map((x) => <mesh key={x} position={[x, 3.2, -16]}><boxGeometry args={[.08, 2.2, 7]} /><meshBasicMaterial color="#aeb9b9" transparent opacity={.28} toneMapped={false} /></mesh>)}
+    <mesh position={[9, 2.32, -16]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[1.7, 2.1, 32]} /><meshBasicMaterial color="#aebabb" transparent opacity={visited ? .52 : .23} toneMapped={false} /></mesh>
+    <InteractionVolume id="nexus-ledge" position={[9, 3.5, -16]} size={[6, 3.8, 6]} />
+    <WorldLabel primary="UPPER ALIGNMENT" secondary={visited ? "CHAMBER SCALE / RECORDED" : "OBSERVATION LEDGE / ACCESS"} position={[9, 5, -6]} rotation={[0, Math.PI, 0]} width={2.4} active={active} />
+  </group>;
+}
+
 function N07Gate({ evaluation, reducedMotion, active, committed, completed, route }: { evaluation: N07AccessEvaluation; reducedMotion: boolean; active: boolean; committed: boolean; completed: boolean; route: string | null }) {
   const fragments = useRef<THREE.Group>(null);
   const clock = useRef(0);
@@ -127,7 +184,7 @@ function N07Gate({ evaluation, reducedMotion, active, committed, completed, rout
   </group>;
 }
 
-export function ArchiveNexus({ reducedMotion, discoveredCount, session, gateOpening, progress, target }: Props) {
+export function ArchiveNexus({ reducedMotion, discoveredCount, session, gateOpening, progress, target, scanner }: Props) {
   const mechanism = useRef<THREE.Group>(null);
   const gateLeft = useRef<THREE.Mesh>(null);
   const gateRight = useRef<THREE.Mesh>(null);
@@ -144,10 +201,17 @@ export function ArchiveNexus({ reducedMotion, discoveredCount, session, gateOpen
   const mutations = useMemo(() => resolveFacilityMutations(progress.consequences), [progress.consequences]);
   const n07 = useMemo(() => evaluateN07Access(progress, session.returningVisitor), [progress, session.returningVisitor]);
   const traceAcquired = progress.completedInteractions.includes("scanner-array") || Boolean(progress.signalResult);
+  const gameplay = progress.nexusGameplay;
+  const lightingState: NexusLightingState = progress.n07.completed ? "post-n07" : (gameplay.triangulated && !gameplay.relayStabilized) || mutations.rareTopology || mutations.voidAbsence ? "anomaly" : "normal";
+  const routeEnergy = gameplay.arrayCalibrated ? .76 : gameplay.triangulated ? .52 : .3;
 
   useFrame((state, delta) => {
     clock.current += delta;
-    if (mechanism.current && !reducedMotion) mechanism.current.rotation.y += delta * .035;
+    if (mechanism.current) {
+      if (!reducedMotion) mechanism.current.rotation.y += delta * (.025 + gameplay.scanPoints.length * .012 + (gameplay.arrayCalibrated ? .035 : 0));
+      mechanism.current.rotation.z = THREE.MathUtils.damp(mechanism.current.rotation.z, gameplay.relayStabilized ? 0 : gameplay.triangulated ? -.08 : 0, 2.2, delta);
+      mechanism.current.position.y = THREE.MathUtils.damp(mechanism.current.position.y, gameplay.ledgeVisited ? 14.35 : 13.8, 2, delta);
+    }
     if (map.current && !reducedMotion) map.current.position.y = 3.3 + Math.sin(clock.current * .55) * .08;
     const opening = gateOpening ? 2.45 : 0;
     if (gateLeft.current) gateLeft.current.position.x = THREE.MathUtils.damp(gateLeft.current.position.x, -1.42 - opening, reducedMotion ? 14 : 2.4, delta);
@@ -159,10 +223,10 @@ export function ArchiveNexus({ reducedMotion, discoveredCount, session, gateOpen
   return (
     <group>
       <color attach="background" args={["#010203"]} />
-      <fog attach="fog" args={["#010203", 20, 72]} />
-      <hemisphereLight color="#9aa7a9" groundColor="#050708" intensity={.48} />
-      <ambientLight color="#718084" intensity={.25} />
-      <directionalLight color="#d5dad8" intensity={2.1} position={[-8, 24, 13]} />
+      <fog attach="fog" args={["#010203", lightingState === "anomaly" ? 17 : 21, lightingState === "post-n07" ? 82 : 70]} />
+      <hemisphereLight color="#b0babc" groundColor="#07090a" intensity={lightingState === "normal" ? .74 : .66} />
+      <ambientLight color="#7f8b8e" intensity={lightingState === "post-n07" ? .45 : .39} />
+      <directionalLight color="#d5dad8" intensity={2.45} position={[-8, 24, 13]} />
       <spotLight color="#b9c6c8" intensity={12} position={[0, 22, 6]} angle={.3} penumbra={.82} distance={58} decay={1.7} />
       <spotLight color="#d4ccc2" intensity={7.2} position={[-12, 8, 4]} angle={.3} penumbra={.88} distance={32} decay={1.9} />
       <pointLight color="#7a8a8d" intensity={5.5} position={[9, 4, -3]} distance={22} decay={1.9} />
@@ -170,16 +234,16 @@ export function ArchiveNexus({ reducedMotion, discoveredCount, session, gateOpen
       <spotLight color="#849599" intensity={traceAcquired ? 13 : 8} position={[7.5, 8.5, 12]} angle={.22} penumbra={.78} distance={28} decay={1.8} />
       <spotLight color="#9da8a9" intensity={5.5} position={[-8, 8, 11]} angle={.24} penumbra={.86} distance={26} decay={1.9} />
 
-      <mesh position={[0, -.22, -5]}><boxGeometry args={[31, .44, 46]} /><meshPhysicalMaterial color="#101416" metalness={.9} roughness={.28} clearcoat={.1} /></mesh>
+      <mesh position={[0, -.22, -5]}><boxGeometry args={[31, .44, 46]} /><meshPhysicalMaterial color={lightingState === "anomaly" ? "#151b1d" : "#192023"} metalness={.88} roughness={.33} clearcoat={.1} /></mesh>
       <mesh position={[0, -.005, -2]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[7.5, 34]} /><meshBasicMaterial color="#111719" transparent opacity={.22} /></mesh>
-      {[-7.6, 7.6].map((x) => <mesh key={x} position={[x, .02, -1]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[.035, 36]} /><meshBasicMaterial color="#a4afb0" transparent opacity={.32} toneMapped={false} /></mesh>)}
+      {[-14.4, -7.6, 7.6, 14.4].map((x) => <mesh key={x} position={[x, .02, -1]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[x === -7.6 || x === 7.6 ? .05 : .035, 36]} /><meshBasicMaterial color="#b5bfbe" transparent opacity={x === -7.6 || x === 7.6 ? .5 : .28} toneMapped={false} /></mesh>)}
       {Array.from({ length: 18 }, (_, index) => <mesh key={index} position={[0, .025, 15 - index * 1.95]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[12, .018]} /><meshBasicMaterial color="#758083" transparent opacity={index % 4 === 0 ? .24 : .08} /></mesh>)}
       {[
         { x: -2.65, z: 9.65, rotation: -.55, active: target === "route-record-vault" },
         { x: 2.65, z: 9.65, rotation: .55, active: traceAcquired || target === "route-signal-room" },
         { x: 0, z: -7.2, rotation: 0, active: target === "observation-gate" },
       ].map((route, index) => <group key={index} position={[route.x, .045, route.z]} rotation={[0, route.rotation, 0]}>
-        <mesh><boxGeometry args={[route.active ? .09 : .045, .022, index === 2 ? 18 : 7.7]} /><meshBasicMaterial color="#b1bcbd" transparent opacity={route.active ? .6 : .25} toneMapped={false} /></mesh>
+        <mesh><boxGeometry args={[route.active ? .09 : .055, .022, index === 2 ? 18 : 7.7]} /><meshBasicMaterial color="#c0c9c8" transparent opacity={route.active ? .72 : routeEnergy} toneMapped={false} /></mesh>
         {[-1, 0, 1].map((step) => <mesh key={step} position={[0, .018, step * (index === 2 ? 5.2 : 2.1)]} rotation={[0, 0, Math.PI / 4]}><boxGeometry args={[.34, .018, .34]} /><meshBasicMaterial color="#879396" transparent opacity={route.active ? .36 : .15} /></mesh>)}
       </group>)}
 
@@ -199,6 +263,8 @@ export function ArchiveNexus({ reducedMotion, discoveredCount, session, gateOpen
       </group>
       <mesh position={[0, 12.8, -12.8]}><cylinderGeometry args={[5.6, 7.8, 25, 24, 1, true]} /><meshBasicMaterial color="#9ba7a9" transparent opacity={.018} side={THREE.DoubleSide} depthWrite={false} blending={THREE.AdditiveBlending} /></mesh>
       <mesh position={[0, 10.8, -13.2]}><boxGeometry args={[.055, 20, .055]} /><meshBasicMaterial color="#c5cdcb" transparent opacity={.62} toneMapped={false} /></mesh>
+      {gameplay.wakeComplete && <group position={[0, .08, -10.2]} rotation={[-Math.PI / 2, 0, 0]}>{[3.2, 5.5, 8.2].map((radius, index) => <mesh key={radius}><ringGeometry args={[radius, radius + .035, 64]} /><meshBasicMaterial color="#b8c3c2" transparent opacity={(gameplay.relayStabilized ? .42 : .26) - index * .06} toneMapped={false} /></mesh>)}</group>}
+      {gameplay.triangulated && [[0, -10.2, 0], [5.7, -4.4, -.78], [-5.7, -4.4, .78]].map(([x, z, rotation], index) => <mesh key={index} position={[x, .07, z]} rotation={[-Math.PI / 2, 0, rotation]}><planeGeometry args={[.045, index ? 16 : 12]} /><meshBasicMaterial color="#cad2d0" transparent opacity={gameplay.arrayCalibrated ? .68 : .38} toneMapped={false} /></mesh>)}
 
       <group position={[0, 0, -18.2]}>
         <mesh position={[-4.9, 5.3, 0]}><boxGeometry args={[5.8, 11, 2.6]} /><meshPhysicalMaterial color="#080a0b" metalness={.9} roughness={.3} /></mesh>
@@ -223,8 +289,13 @@ export function ArchiveNexus({ reducedMotion, discoveredCount, session, gateOpen
         {mutations.rareTopology && <group position={[0, -2.4, 0]} rotation={[.7, .4, 0]}><mesh><torusGeometry args={[3.6, .06, 8, 96]} /><meshBasicMaterial color="#c5b7ae" transparent opacity={.55} toneMapped={false} /></mesh><mesh position={[0, 0, 3.6]}><octahedronGeometry args={[.2, 0]} /><meshBasicMaterial color="#d0c3ba" transparent opacity={.72} /></mesh></group>}
       </group>
       <mesh position={[-8.2, .55, -1]}><cylinderGeometry args={[2.8, 3.3, 1.1, 8]} /><meshPhysicalMaterial color="#080a0b" metalness={.9} roughness={.28} /></mesh>
-      <InteractionVolume id="archive-map" position={[-8.2, 2.8, -1]} size={[5.3, 5.6, 5.3]} />
-      <WorldLabel primary="ARCHIVE MAP" secondary="PHYSICAL INDEX / INTERACT" position={[-8.2, 6.7, 1]} rotation={[0, .18, 0]} active={target === "archive-map"} />
+      <InteractionVolume id={gameplay.topologyAligned ? "archive-map" : "topology-current"} position={[-8.2, 2.8, -1]} size={[5.3, 5.6, 5.3]} />
+      <group position={[-10.2, 0, 1.8]}><mesh position={[0, .65, 0]}><cylinderGeometry args={[.3, .48, 1.3, 8]} /><meshPhysicalMaterial color="#101617" metalness={.92} roughness={.23} /></mesh><InteractionVolume id="topology-recorded" position={[0, 1, 0]} size={[1.4, 2, 1.4]} /></group>
+      <WorldLabel primary="ARCHIVE MAP" secondary={gameplay.topologyAligned ? "IMPOSSIBLE ALIGNMENT / EXPOSED" : gameplay.topologyCompared ? "RECORDED TOPOLOGY / SELECT" : "CURRENT TOPOLOGY / ROTATE"} position={[-8.2, 6.7, 1]} rotation={[0, .18, 0]} active={target === "archive-map" || target?.startsWith("topology")} />
+      {gameplay.topologyAligned && <group position={[-11.8, 0, -17.5]} rotation={[0, .18, 0]}>
+        {[0, 1, 2, 3].map((index) => <mesh key={index} position={[0, 1.5 + index * 2.1, -index * 1.35]}><boxGeometry args={[4.4 - index * .35, .055, .055]} /><meshBasicMaterial color="#c6b9b0" transparent opacity={.38 - index * .055} toneMapped={false} /></mesh>)}
+        <mesh position={[0, .04, -2]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[3.8, 8.5]} /><meshBasicMaterial color="#8f9b9c" transparent opacity={.075} depthWrite={false} /></mesh>
+      </group>}
 
       <group position={[8.7, 0, .2]}>
         <mesh position={[0, 1.1, 0]} rotation={[-.18, 0, 0]}><boxGeometry args={[4.7, 2.2, 2.7]} /><meshPhysicalMaterial color="#0b0e0f" metalness={.91} roughness={.26} /></mesh>
@@ -234,16 +305,13 @@ export function ArchiveNexus({ reducedMotion, discoveredCount, session, gateOpen
         <WorldLabel primary="SYSTEM NODE" secondary="LOCAL TERMINAL / INTERACT" position={[0, 4.15, .5]} rotation={[0, -.18, 0]} active={target === "system-terminal"} />
       </group>
 
-      <group position={[2.7, 0, 9.3]} userData={{ interactionId: "scanner-array" }}>
-        <mesh position={[0, 1.9, 0]}><cylinderGeometry args={[.12, .38, 3.8, 8]} /><meshPhysicalMaterial color="#161b1d" metalness={.92} roughness={.24} /></mesh>
-        <mesh position={[0, 4, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[.72, .045, 8, 48]} /><meshBasicMaterial color="#9ba6a8" transparent opacity={.48} toneMapped={false} /></mesh>
-        <InteractionVolume id="scanner-array" position={[0, 2.5, 0]} size={[2.3, 5, 2.3]} />
-        <WorldLabel primary="ARRAY 7A" secondary={traceAcquired ? "SIGNAL RETURN / ACQUIRED" : "MEASUREMENT / STANDBY"} position={[0, 3.45, .15]} width={2.8} active={target === "scanner-array" || traceAcquired} />
-      </group>
+      <MeasurementArray gameplay={gameplay} target={target} reducedMotion={reducedMotion} />
+      <NexusActivities gameplay={gameplay} scanner={scanner} target={target} />
+      <UpperLedge visited={gameplay.ledgeVisited} active={target === "nexus-ledge"} />
 
       <RouteGate id="route-record-vault" position={[-4.15, 0, 5.7]} side={-1} label="LEFT" detail="RECORD VAULT / OPTIONAL" open={progress.discoveredRooms.includes("record-vault")} active={target === "route-record-vault"} />
-      <RouteGate id="route-signal-room" position={[4.15, 0, 5.7]} side={1} label="RIGHT" detail="SIGNAL ROOM / SIGNAL 7A" open={progress.discoveredRooms.includes("signal-room")} active={traceAcquired || target === "route-signal-room"} />
-      <MaintenanceHatch available={traceAcquired || progress.hiddenPassageDiscovered} active={target === "route-maintenance-spine"} />
+      <RouteGate id="route-signal-room" position={[4.15, 0, 5.7]} side={1} label="RIGHT" detail={gameplay.arrayCalibrated ? "SIGNAL ROOM / ROUTE ACTIVE" : "SIGNAL ROOM / ALIGN ARRAY"} open={gameplay.arrayCalibrated || progress.discoveredRooms.includes("signal-room")} active={gameplay.arrayCalibrated || target === "route-signal-room"} />
+      <MaintenanceHatch available={gameplay.relayStabilized || progress.hiddenPassageDiscovered} active={target === "route-maintenance-spine"} />
 
       <group position={[-8.4, 0, 8.2]}>
         {[0, 1, 2].map((index) => <mesh key={index} position={[index * .72, 2.2 + index * .55, -.45 * index]} rotation={[0, .22, -.06]}><boxGeometry args={[.5, 4.4 + index, 2.5]} /><meshPhysicalMaterial color="#0b0f10" metalness={.9} roughness={.3} /></mesh>)}
@@ -251,6 +319,10 @@ export function ArchiveNexus({ reducedMotion, discoveredCount, session, gateOpen
       <group position={[6.9, 4.5, 5.9]}>
         {Array.from({ length: 9 }, (_, index) => <mesh key={index} position={[(index - 4) * .31, Math.sin(index * 1.1) * .55, 0]}><boxGeometry args={[.06, .28 + Math.abs(Math.sin(index)) * .8, .04]} /><meshBasicMaterial color="#aeb9b9" transparent opacity={traceAcquired ? .68 : .3} toneMapped={false} /></mesh>)}
       </group>
+      <group position={[-6.9, 4.5, 5.9]}>{[0, 1, 2, 3].map((index) => <mesh key={index} position={[(index - 1.5) * .62, index % 2 ? .6 : -.4, 0]}><boxGeometry args={[.34, 2.6 + index * .45, .06]} /><meshBasicMaterial color="#d2cbc1" transparent opacity={gameplay.topologyCompared ? .46 : .24} toneMapped={false} /></mesh>)}</group>
+      <mesh position={[4.2, .055, 6.6]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[5.2, 4.8]} /><meshBasicMaterial color="#8fa1a4" transparent opacity={gameplay.arrayCalibrated ? .16 : .07} /></mesh>
+      <mesh position={[-4.2, .055, 6.6]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[5.2, 4.8]} /><meshBasicMaterial color="#b9afa4" transparent opacity={gameplay.topologyCompared ? .14 : .065} /></mesh>
+      <mesh position={[0, .055, -16.8]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[7.2, 4.8]} /><meshBasicMaterial color="#c2c8c5" transparent opacity={.1 + (gameplay.relayStabilized ? .08 : 0)} /></mesh>
 
       {doorData.map((door, index) => <SectorDoor key={index} index={index + 1} position={door.position} rotation={door.rotation} available={index === 0 || index < discoveredCount} changed={(index === 0 && session.maxGravityIntensity > .7) || (index === 2 && session.event13Discovered) || (index === 4 && session.voidProbeCount > 0)} />)}
       <InteractionVolume id="restricted-sector" position={[11.1, 3.1, 7.1]} size={[2, 6.2, 4.2]} />
