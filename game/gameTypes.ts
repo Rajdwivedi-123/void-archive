@@ -1,4 +1,5 @@
-export type ExperienceMode = "nexus" | "observation" | "transition";
+export type ExperienceMode = "nexus" | "observation" | "transition" | "n07";
+export type PlayableSpace = FacilityRoom | "n07";
 
 export type FacilityRoom = "nexus" | "record-vault" | "signal-room" | "dead-sector" | "observation-deck" | "maintenance-spine";
 
@@ -24,6 +25,22 @@ export type NexusInteractionId =
   | "shortcut-control"
   | "hidden-passage"
   | "n07-gate"
+  | "n07-cross-threshold"
+  | "n07-topology-visible"
+  | "n07-topology-missing"
+  | "n07-causal-pre"
+  | "n07-causal-signal"
+  | "n07-causal-containment"
+  | "n07-causal-arrival"
+  | "n07-observer-direct"
+  | "n07-observer-wait"
+  | "n07-route-model"
+  | "n07-route-contradiction"
+  | "n07-secret"
+  | "n07-traversal"
+  | "n07-final-stabilize"
+  | "n07-final-preserve"
+  | "n07-return"
   | "corridor-marker";
 
 export type PlayerPose = {
@@ -51,7 +68,7 @@ export type NexusCheckpoint = {
 export type FacilityClue = "record-future" | "signal-7a" | "dead-sector" | "observation-sighting" | "maintenance-marking" | "corridor-label";
 
 export type FacilityProgress = {
-  version: 5;
+  version: 6;
   epoch: number;
   location: FacilityRoom;
   pose: PlayerPose;
@@ -67,6 +84,7 @@ export type FacilityProgress = {
   impossibleCorridorSeen: boolean;
   investigation: import("./investigation").InvestigationProgress;
   consequences: import("./consequenceTypes").ConsequenceState;
+  n07: import("./n07Level").N07LevelProgress;
 };
 
 export const defaultNexusPose: PlayerPose = {

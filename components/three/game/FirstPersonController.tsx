@@ -4,9 +4,9 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import type { DeviceTier } from "@/hooks/useDeviceProfile";
-import type { FacilityRoom, NexusInteractionId, PlayerPose } from "@/game/gameTypes";
+import type { NexusInteractionId, PlayableSpace, PlayerPose } from "@/game/gameTypes";
 import type { NexusControlStore } from "@/game/NexusControlStore";
-import { facilityCollision } from "@/game/facilityTopology";
+import { playableCollision } from "@/game/facilityTopology";
 
 type Props = {
   active: boolean;
@@ -14,7 +14,7 @@ type Props = {
   reducedMotion: boolean;
   controls: NexusControlStore;
   initialPose: PlayerPose;
-  room: FacilityRoom;
+  room: PlayableSpace;
   onTarget: (target: NexusInteractionId | null) => void;
   onInteract: (target: NexusInteractionId) => void;
   onScannerToggle: () => void;
@@ -22,8 +22,8 @@ type Props = {
   onPointerLock: (locked: boolean) => void;
 };
 
-function blocked(room: FacilityRoom, x: number, z: number) {
-  return facilityCollision[room].blockers.some((box) => x > box.minX - .42 && x < box.maxX + .42 && z > box.minZ - .42 && z < box.maxZ + .42);
+function blocked(room: PlayableSpace, x: number, z: number) {
+  return playableCollision[room].blockers.some((box) => x > box.minX - .42 && x < box.maxX + .42 && z > box.minZ - .42 && z < box.maxZ + .42);
 }
 
 function interactionFrom(object: THREE.Object3D | null): NexusInteractionId | null {
@@ -125,7 +125,7 @@ export function FirstPersonController({ active, tier, reducedMotion, controls, i
     velocity.current.x = THREE.MathUtils.damp(velocity.current.x, vectors.desired.x, moving ? 7 : 9, delta);
     velocity.current.z = THREE.MathUtils.damp(velocity.current.z, vectors.desired.z, moving ? 7 : 9, delta);
     vectors.next.copy(state.camera.position);
-    const bounds = facilityCollision[room];
+    const bounds = playableCollision[room];
     const nextX = THREE.MathUtils.clamp(vectors.next.x + velocity.current.x * delta, bounds.minX, bounds.maxX);
     if (!blocked(room, nextX, vectors.next.z)) vectors.next.x = nextX;
     const nextZ = THREE.MathUtils.clamp(vectors.next.z + velocity.current.z * delta, bounds.minZ, bounds.maxZ);

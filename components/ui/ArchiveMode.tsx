@@ -12,6 +12,7 @@ import { InvestigationBoard } from "./InvestigationInterface";
 import type { ConsequenceState } from "@/game/consequenceTypes";
 import { resolveFacilityMutations } from "@/game/facilityMutations";
 import type { N07AccessEvaluation } from "@/game/n07Access";
+import type { N07LevelProgress } from "@/game/n07Level";
 
 type ArchiveSection = "index" | "investigation" | "connections" | "response" | "sectors" | "system";
 
@@ -25,11 +26,13 @@ type ArchiveModeProps = {
   investigation: InvestigationProgress;
   consequences: ConsequenceState;
   n07Access: N07AccessEvaluation;
+  n07Progress: N07LevelProgress;
   onClose: () => void;
   onSelect: (id: ArtifactId) => void;
   onRevisit: (id: ArtifactId) => void;
   onInspect: (id: ArtifactId) => void;
   onConnectEvidence: (a: string, b: string) => void;
+  onResetObserver: () => void;
 };
 
 const mapPositions = [
@@ -69,11 +72,13 @@ export function ArchiveMode({
   investigation,
   consequences,
   n07Access,
+  n07Progress,
   onClose,
   onSelect,
   onRevisit,
   onInspect,
   onConnectEvidence,
+  onResetObserver,
 }: ArchiveModeProps) {
   const [section, setSection] = useState<ArchiveSection>("index");
   const [recordIndex, setRecordIndex] = useState(0);
@@ -193,16 +198,16 @@ export function ArchiveMode({
 
           {section === "investigation" && <InvestigationBoard progress={investigation} session={session} onConnect={onConnectEvidence} />}
           {section === "connections" && <ConnectionMap discoveredCount={discoveredCount} revealN07={postJourney || session.event13Discovered} mirrorDepth={session.mirrorObservationDepth} archetype={session.archetype} route={session.n07Route} onSelect={(id) => { selectArtifact(id); setSection("index"); }} />}
-          {section === "response" && <FacilityResponsePanel consequences={consequences} access={n07Access} />}
+          {section === "response" && <FacilityResponsePanel consequences={consequences} access={n07Access} n07={n07Progress} />}
           {section === "sectors" && <SectorMap discoveredCount={discoveredCount} revealN07={postJourney || session.event13Discovered} voidMeasured={session.voidProbeCount > 0} onSelect={(id) => { selectArtifact(id); setSection("index"); }} />}
-          {section === "system" && <SystemPanel discoveredCount={discoveredCount} postJourney={postJourney} session={session} quality={graphicsQuality} audioEnabled={audio.enabled} onReset={() => { if (window.confirm("Reset the local observer trace? This cannot be undone.")) { audio.cueInteraction("reset"); reality.resetTrace(); } }} />}
+          {section === "system" && <SystemPanel discoveredCount={discoveredCount} postJourney={postJourney} session={session} quality={graphicsQuality} audioEnabled={audio.enabled} onReset={() => { if (window.confirm("Reset the local observer trace? This cannot be undone.")) { audio.cueInteraction("reset"); reality.resetTrace(); onResetObserver(); } }} />}
         </div>
       </div>
     </section>
   );
 }
 
-function FacilityResponsePanel({ consequences, access }: { consequences: ConsequenceState; access: N07AccessEvaluation }) {
+function FacilityResponsePanel({ consequences, access, n07 }: { consequences: ConsequenceState; access: N07AccessEvaluation; n07: N07LevelProgress }) {
   const mutations = resolveFacilityMutations(consequences);
   const sectors = [
     ["NEXUS", mutations.gravityBent ? "FIELD AXIS DISPLACED" : mutations.containmentAligned ? "FIELD AXIS COHERENT" : "NO COMMITTED RESPONSE"],
@@ -210,7 +215,7 @@ function FacilityResponsePanel({ consequences, access }: { consequences: Consequ
     ["SIGNAL ROOM", mutations.signalTopology ? `${mutations.signalTopology.toUpperCase()} TOPOLOGY` : "RECEIVER UNRESOLVED"],
     ["DEAD SECTOR", mutations.deadSectorState.toUpperCase()],
     ["MAINTENANCE", mutations.routeVariant ? `${mutations.routeVariant.toUpperCase()} ROUTE` : "LENGTH UNVERIFIED"],
-    ["N-07", consequences.endingCommit ? `COMMITTED / ${consequences.endingCommit.type.toUpperCase().replaceAll("-", " ")}` : `${access.facilityState} / TIER ${access.tier}`],
+    ["N-07", n07.completed ? `TRAVERSED / ${(n07.route ?? "NONLOCAL").toUpperCase()}` : consequences.endingCommit ? `COMMITTED / ${consequences.endingCommit.type.toUpperCase().replaceAll("-", " ")}` : `${access.facilityState} / TIER ${access.tier}`],
   ];
   return <div className="mx-auto max-w-5xl" data-facility-response><p className="text-[8px] tracking-[.42em] text-white/28">ARCHIVE CAUSAL MODEL / COMMITTED RESPONSES</p><h3 className="mt-4 text-2xl tracking-[.28em] sm:text-4xl">FACILITY RESPONSE</h3><p className="mt-4 max-w-2xl text-[9px] leading-6 tracking-[.2em] text-white/36">The archive does not preserve a neutral state. Physical responses remain attached to the observation that produced them.</p><div className="relative mt-9 grid gap-px border-y border-white/10 sm:grid-cols-2">{sectors.map(([sector, response], index) => <div key={sector} className={`min-h-28 border-l p-4 ${index === 5 && access.tier >= 4 ? "border-[#b8a99f]/45" : "border-white/12"}`}><p className="text-[7px] tracking-[.3em] text-white/27">{sector}</p><p className="mt-4 text-[9px] tracking-[.21em] text-white/64">{response}</p><div className={`mt-5 h-px ${response.includes("NOMINAL") || response.includes("UNRESOLVED") ? "w-12 bg-white/10" : "w-28 bg-white/26"}`} /></div>)}</div><div className="mt-8 grid gap-5 border-l border-white/12 pl-4 text-[7px] leading-6 tracking-[.22em] text-white/32 sm:grid-cols-2"><div><p>CAUSALITY CONFLICTS / {consequences.rejectedCorrelations.length}</p><p>PERSISTENT ANOMALIES / {mutations.responseLabels.length}</p><p>ACTIVE SECTORS / {mutations.activeSectorCount}</p><p>ENDING VECTOR / {mutations.ending.toUpperCase().replaceAll("-", " ")}</p></div><div><p>APPROACH VECTOR / {access.vector.toUpperCase()}</p><p>KEY EVIDENCE / {access.keyEvidence.length ? access.keyEvidence.join(" · ") : "NONE"}</p><p>UNRESOLVED / {access.unresolvedEvidence.length ? access.unresolvedEvidence.join(" · ") : "NONE"}</p><p>SUBJECT STATUS / {consequences.endingCommit ? "COMMITMENT PRESERVED" : access.thresholdReady ? "AT THRESHOLD" : "OBSERVED"}</p></div></div></div>;
 }
