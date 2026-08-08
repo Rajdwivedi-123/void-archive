@@ -34,7 +34,7 @@ export const facilityCollision: Record<FacilityRoom, FacilityCollision> = {
 
 export const playableCollision: Record<PlayableSpace, FacilityCollision> = {
   ...facilityCollision,
-  n07: { minX: -11.5, maxX: 11.5, minZ: -82, maxZ: 15.5, blockers: [] },
+  n07: { minX: -11.5, maxX: 11.5, minZ: -121, maxZ: 15.5, blockers: [] },
 };
 
 export function safeFacilityPose(room: FacilityRoom, pose?: PlayerPose): PlayerPose {

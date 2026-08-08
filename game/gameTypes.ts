@@ -43,16 +43,34 @@ export type NexusInteractionId =
   | "n07-cross-threshold"
   | "n07-topology-visible"
   | "n07-topology-missing"
-  | "n07-causal-pre"
-  | "n07-causal-signal"
-  | "n07-causal-containment"
-  | "n07-causal-arrival"
+  | "n07-stillness-seam"
+  | "n07-reflection-route"
+  | "n07-trace-sync"
+  | "n07-trace-diverge"
+  | "n07-future-self"
+  | "n07-evidence-event"
+  | "n07-evidence-signal"
+  | "n07-evidence-void"
+  | "n07-evidence-memory"
+  | "n07-bridge-supported"
+  | "n07-bridge-contradictory"
+  | "n07-failure-anchor-1"
+  | "n07-failure-anchor-2"
+  | "n07-failure-anchor-3"
   | "n07-observer-direct"
   | "n07-observer-wait"
   | "n07-route-model"
   | "n07-route-contradiction"
-  | "n07-secret"
   | "n07-traversal"
+  | "n07-exterior-scan-archive"
+  | "n07-exterior-scan-horizon"
+  | "n07-exterior-scan-observer"
+  | "n07-exterior-window"
+  | "n07-exterior-measure"
+  | "n07-interpret-sector"
+  | "n07-interpret-archive"
+  | "n07-interpret-observer"
+  | "n07-interpret-event"
   | "n07-final-stabilize"
   | "n07-final-preserve"
   | "n07-return"
@@ -83,7 +101,7 @@ export type NexusCheckpoint = {
 export type FacilityClue = "record-future" | "signal-7a" | "dead-sector" | "observation-sighting" | "maintenance-marking" | "corridor-label";
 
 export type FacilityProgress = {
-  version: 7;
+  version: 8;
   epoch: number;
   location: FacilityRoom;
   pose: PlayerPose;

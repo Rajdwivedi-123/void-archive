@@ -11,6 +11,7 @@ import type { GraphicsQuality } from "@/hooks/useGraphicsQuality";
 import type { ExperienceMode, FacilityProgress, FacilityRoom, NexusInteractionId, PlayerPose } from "@/game/gameTypes";
 import type { NexusControlStore } from "@/game/NexusControlStore";
 import type { RealitySnapshot } from "@/reality/realityTypes";
+import type { N07RuntimeEvent } from "./game/N07Level";
 
 type ArchiveCanvasProps = {
   isSceneReady: boolean;
@@ -37,6 +38,7 @@ type ArchiveCanvasProps = {
   onNexusScanner: () => void;
   onNexusPose: (pose: PlayerPose) => void;
   onPointerLock: (locked: boolean) => void;
+  onN07RuntimeEvent: (event: N07RuntimeEvent) => void;
 };
 
 export function ArchiveCanvas({
@@ -64,6 +66,7 @@ export function ArchiveCanvas({
   onNexusScanner,
   onNexusPose,
   onPointerLock,
+  onN07RuntimeEvent,
 }: ArchiveCanvasProps) {
   return (
     <div className="fixed inset-0 z-10 h-[100svh] w-screen overflow-hidden">
@@ -110,6 +113,7 @@ export function ArchiveCanvas({
             onNexusScanner={onNexusScanner}
             onNexusPose={onNexusPose}
             onPointerLock={onPointerLock}
+            onN07RuntimeEvent={onN07RuntimeEvent}
           />
         </Canvas>
       </div>

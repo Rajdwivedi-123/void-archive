@@ -37,7 +37,8 @@ import type { ConsequenceState, EndingCommit, SignalResolution } from "@/game/co
 import { evaluateN07Access } from "@/game/n07Access";
 import { N07Ending, N07Threshold } from "./N07Threshold";
 import { N07Completion, N07LevelHUD } from "./N07LevelInterface";
-import { n07AreaPoses, n07CausalOrder, type N07Area, type N07CausalEvent } from "@/game/n07Level";
+import { appendN07Trace, n07AreaPoses, type N07Area, type N07EvidenceAnchor, type N07ExteriorScan, type N07Interpretation } from "@/game/n07Level";
+import type { N07RuntimeEvent } from "../three/game/N07Level";
 import { arrayTargets, createNexusGameplayProgress, relayOrder, type NexusRelayPoint, type NexusScanPoint } from "@/game/nexusGameplay";
 
 function stageArtifact(stage: string): ArtifactId | null {
@@ -381,55 +382,45 @@ function VoidArchiveExperience() {
     updateFacility((current) => ({ ...current, n07: { ...current.n07, area, checkpointPose: pose } }));
     showNexusNotice(message);
   }, [showNexusNotice, updateFacility]);
+  const handleN07RuntimeEvent = useCallback((event: N07RuntimeEvent) => {
+    updateFacility((current) => {
+      if (event === "future-self") return current.n07.area === "trace" && !current.n07.futureSelfSeen ? { ...current, n07: { ...current.n07, futureSelfSeen: true } } : current;
+      if (current.n07.area !== "corridor") return current;
+      if (event === "stillness") return current.n07.stillnessRevealed ? current : { ...current, n07: { ...current.n07, stillnessRevealed: true, traceSamples: appendN07Trace(current.n07, { kind: "pause", area: "corridor", position: current.n07.checkpointPose.position }) } };
+      const topologyState = event === "topology-observed" ? "observed" : "unobserved";
+      return current.n07.topologyState === topologyState ? current : { ...current, n07: { ...current.n07, topologyState } };
+    });
+  }, [updateFacility]);
   const handleN07Interact = useCallback((target: NexusInteractionId) => {
     const progress = facilityProgress.n07;
     if (experienceMode !== "n07") { setExperienceMode("n07"); setNexusEntered(true); }
-    if (target === "n07-cross-threshold") { audio.cueInteraction("record"); moveWithinN07("reconstruction", "THRESHOLD CROSSED / ARCHIVE GEOMETRY RECONSTRUCTING"); return; }
-    if (target === "n07-topology-visible") { audio.cueInteraction("reset"); showNexusNotice("VISIBLE ROUTE / INTERNALLY CONSISTENT · DESTINATION ABSENT"); return; }
-    if (target === "n07-topology-missing") {
-      updateFacility((current) => ({ ...current, n07: { ...current.n07, topologySolved: true } }));
-      audio.cueInteraction("scanner"); moveWithinN07("causal", "TOPOLOGY ACCEPTED / MISSING INTERVAL IS THE ROUTE"); return;
-    }
-    const causalByTarget: Partial<Record<NexusInteractionId, N07CausalEvent>> = { "n07-causal-pre": "pre-record", "n07-causal-signal": "signal-response", "n07-causal-containment": "containment-change", "n07-causal-arrival": "observer-arrival" };
-    const causalEvent = causalByTarget[target];
-    if (causalEvent) {
-      const expected = n07CausalOrder[progress.causalSequence.length];
-      if (causalEvent !== expected) {
-        updateFacility((current) => ({ ...current, n07: { ...current.n07, causalSequence: [], causalSolved: false } }));
-        audio.cueInteraction("reset"); showNexusNotice("CAUSAL ORDER REJECTED / SEQUENCE RETURNED SAFELY"); return;
-      }
-      const sequence = [...progress.causalSequence, causalEvent];
-      updateFacility((current) => ({ ...current, n07: { ...current.n07, causalSequence: sequence, causalSolved: sequence.length === n07CausalOrder.length } }));
-      audio.cueInteraction(sequence.length === n07CausalOrder.length ? "subject" : "record");
-      if (sequence.length === n07CausalOrder.length) moveWithinN07("missing", "EVENT 13 RECONSTRUCTED / EFFECT PRECEDES ARRIVAL"); else showNexusNotice(`EVENT 13 / ${sequence.length} OF 4 LOCKED`);
-      return;
-    }
-    if (target === "n07-route-model" || target === "n07-route-contradiction") {
-      const route = target === "n07-route-model" ? "archive-model" : "contradiction";
-      updateFacility((current) => ({ ...current, n07: { ...current.n07, route } }));
-      audio.cueInteraction(route === "contradiction" ? "scanner" : "archive");
-      moveWithinN07("observer", route === "contradiction" ? "CONTRADICTION ROUTE / UNREGISTERED DEPTH" : "ARCHIVE MODEL ROUTE / REGISTERED DEPTH"); return;
-    }
-    if (target === "n07-secret") {
-      updateFacility((current) => ({ ...current, n07: { ...current.n07, secretFound: true } }));
-      audio.cueInteraction("record"); showNexusNotice("DEEP RECORD / THIS TRAVERSAL WAS FILED BEFORE ENTRY"); return;
-    }
-    if (target === "n07-observer-direct" || target === "n07-observer-wait") {
-      const choice = target === "n07-observer-wait" ? "wait" : "direct";
-      updateFacility((current) => ({ ...current, n07: { ...current.n07, observerSolved: true, observerChoice: choice } }));
-      audio.cueInteraction(choice === "wait" ? "record" : "subject"); showNexusNotice(choice === "wait" ? "PREDICTION EXPIRED / UNAUTHORED RESPONSE" : "PREDICTION CONFIRMED / OBSERVER INCLUDED"); return;
-    }
-    if (target === "n07-traversal") {
-      updateFacility((current) => ({ ...current, n07: { ...current.n07, traversalComplete: true } }));
-      audio.cueInteraction("subject"); moveWithinN07("exterior", "UNSTABLE INTERVAL CROSSED / EXTERIOR MODEL ACTIVE"); return;
-    }
-    if (target === "n07-final-stabilize" || target === "n07-final-preserve") {
-      const finalAction = target === "n07-final-stabilize" ? "stabilize" : "preserve";
-      updateFacility((current) => ({ ...current, n07: { ...current.n07, finalAction, completed: true } }), true);
-      audio.cueInteraction(finalAction === "preserve" ? "record" : "subject"); releasePointer(); setN07CompletionVisible(true); return;
-    }
+    if (target === "n07-cross-threshold") { updateFacility((current) => ({ ...current, n07: { ...current.n07, entered: true, traceSamples: appendN07Trace(current.n07, { kind: "entry", area: "threshold", position: current.n07.checkpointPose.position }) } })); audio.cueInteraction("record"); moveWithinN07("corridor", "THRESHOLD CROSSED / OBSERVATION NOW AFFECTS TOPOLOGY"); return; }
+    if (target === "n07-topology-visible") { audio.cueInteraction("reset"); showNexusNotice("OBSERVED MODEL / CONSISTENT · DESTINATION ABSENT"); return; }
+    if (target === "n07-reflection-route") { updateFacility((current) => ({ ...current, n07: { ...current.n07, reflectionConfirmed: true, topologyState: "memory-stabilized" } })); audio.cueInteraction("scanner"); showNexusNotice("REFLECTION-ONLY ROUTE / PHYSICAL SPACE DISAGREES"); return; }
+    if (target === "n07-stillness-seam") { updateFacility((current) => ({ ...current, n07: { ...current.n07, topologyState: "trace-stabilized" } })); audio.cueInteraction("record"); showNexusNotice("STILLNESS HELD / ARCHITECTURE STOPPED ANTICIPATING"); return; }
+    if (target === "n07-topology-missing") { if (!progress.stillnessRevealed && !progress.reflectionConfirmed && !nexusScanner) { showNexusNotice("ROUTE COLLAPSES UNDER DIRECT OBSERVATION"); return; } updateFacility((current) => ({ ...current, n07: { ...current.n07, topologySolved: true, topologyState: nexusScanner ? "scanner-confirmed" : current.n07.topologyState } })); audio.cueInteraction("scanner"); moveWithinN07("trace", "UNOBSERVED CORRIDOR STABILIZED / OBSERVER TRACE ACQUIRED"); return; }
+    if (target === "n07-trace-sync" || target === "n07-trace-diverge") { const traceStrategy = target === "n07-trace-sync" ? "synchronize" : "diverge"; updateFacility((current) => ({ ...current, n07: { ...current.n07, traceStrategy, traceSynchronized: true, predictionConfidence: traceStrategy === "diverge" ? .43 : .91, traceSamples: appendN07Trace(current.n07, { kind: "interaction", area: "trace", position: current.n07.checkpointPose.position }) } })); audio.cueInteraction(traceStrategy === "diverge" ? "scanner" : "record"); showNexusNotice(traceStrategy === "diverge" ? "TRACE DIVERGED / PREDICTION CONFIDENCE FALLING" : "TRACE SYNCHRONIZED / TWO OBSERVERS SHARE ONE ROUTE"); return; }
+    if (target === "n07-future-self") { if (!progress.traceSynchronized) { showNexusNotice("FUTURE TRACE INCOMPLETE / COOPERATE OR DIVERGE FIRST"); return; } audio.cueInteraction("subject"); moveWithinN07("investigation", "FUTURE-SELF EVENT LOGGED / EVIDENCE NOW HAS MASS"); return; }
+    const evidenceByTarget: Partial<Record<NexusInteractionId, N07EvidenceAnchor>> = { "n07-evidence-event": "event-13", "n07-evidence-signal": "signal-7a", "n07-evidence-void": "void-boundary", "n07-evidence-memory": "memory-record" };
+    const evidence = evidenceByTarget[target];
+    if (evidence) { const count = progress.evidenceAnchors.includes(evidence) ? progress.evidenceAnchors.length : progress.evidenceAnchors.length + 1; updateFacility((current) => ({ ...current, n07: { ...current.n07, evidenceAnchors: current.n07.evidenceAnchors.includes(evidence) ? current.n07.evidenceAnchors : [...current.n07.evidenceAnchors, evidence] } })); audio.cueInteraction("record"); showNexusNotice(`PHYSICAL EVIDENCE ANCHORED / ${count} OF 3 REQUIRED`); return; }
+    if (target === "n07-bridge-supported" || target === "n07-bridge-contradictory") { if (progress.evidenceAnchors.length < 3) { showNexusNotice("CONSTRUCTION UNSUPPORTED / THREE EVIDENCE ANCHORS REQUIRED"); return; } const evidenceBridge = target === "n07-bridge-supported" ? "supported" : "contradictory"; updateFacility((current) => ({ ...current, n07: { ...current.n07, evidenceBridge, investigationSolved: true } })); audio.cueInteraction(evidenceBridge === "supported" ? "subject" : "scanner"); moveWithinN07("failure", `EVIDENCE BECAME TRAVERSABLE / ${evidenceBridge.toUpperCase()} MODEL`); return; }
+    const failureIndex = target.startsWith("n07-failure-anchor-") ? Number(target.at(-1)) : 0;
+    if (failureIndex) { const expected = progress.failureAnchors.length + 1; if (failureIndex !== expected) { updateFacility((current) => ({ ...current, n07: { ...current.n07, failureAnchors: [], failureRecovered: true, recoveryCount: current.n07.recoveryCount + 1 } })); setNexusPose(n07AreaPoses.failure); audio.cueInteraction("reset"); showNexusNotice("RECONSTRUCTION FAILED / SAFE ANCHOR RESTORED"); return; } const failureAnchors = [...progress.failureAnchors, failureIndex]; updateFacility((current) => ({ ...current, n07: { ...current.n07, failureAnchors } })); audio.cueInteraction(failureAnchors.length === 3 ? "subject" : "record"); if (failureAnchors.length === 3) moveWithinN07("observer", "FAILURE CONTAINED / OBSERVER CHAMBER EXPOSED"); else showNexusNotice(`SAFE ANCHOR ${failureIndex} / GEOMETRY RECONSTRUCTING`); return; }
+    if (target === "n07-route-model" || target === "n07-route-contradiction") { const route = target === "n07-route-model" ? "archive-model" : "contradiction"; updateFacility((current) => ({ ...current, n07: { ...current.n07, route } })); audio.cueInteraction(route === "contradiction" ? "scanner" : "archive"); showNexusNotice(route === "contradiction" ? "CONTRADICTION PATH / UNREGISTERED DEPTH" : "ARCHIVE PATH / REGISTERED DEPTH"); return; }
+    if (target === "n07-observer-direct" || target === "n07-observer-wait") { const choice = target === "n07-observer-wait" ? "wait" : "direct"; updateFacility((current) => ({ ...current, n07: { ...current.n07, observerSolved: true, observerChoice: choice, predictionConfidence: choice === "wait" ? Math.max(.12, current.n07.predictionConfidence - .28) : Math.min(.98, current.n07.predictionConfidence + .08) } })); audio.cueInteraction(choice === "wait" ? "record" : "subject"); showNexusNotice(choice === "wait" ? "PREDICTION EXPIRED / UNAUTHORED RESPONSE" : "PREDICTION CONFIRMED / OBSERVER INCLUDED"); return; }
+    if (target === "n07-traversal") { if (!progress.route) { showNexusNotice("A PHYSICAL PATH MUST BE CHOSEN"); return; } updateFacility((current) => ({ ...current, n07: { ...current.n07, traversalComplete: true } })); audio.cueInteraction("subject"); moveWithinN07("exterior", "IMPOSSIBLE EXTERIOR ENTERED / VOLUME EXCEEDS INTERIOR"); return; }
+    const scanByTarget: Partial<Record<NexusInteractionId, N07ExteriorScan>> = { "n07-exterior-scan-archive": "archive", "n07-exterior-scan-horizon": "horizon", "n07-exterior-scan-observer": "observer" };
+    const exteriorScan = scanByTarget[target];
+    if (exteriorScan) { if (!nexusScanner) { showNexusNotice("EXTERIOR SURVEY REQUIRES ACTIVE SCANNER"); return; } const count = progress.exteriorScans.includes(exteriorScan) ? progress.exteriorScans.length : progress.exteriorScans.length + 1; updateFacility((current) => ({ ...current, n07: { ...current.n07, exteriorScans: current.n07.exteriorScans.includes(exteriorScan) ? current.n07.exteriorScans : [...current.n07.exteriorScans, exteriorScan] } })); audio.cueInteraction(count === 3 ? "subject" : "scanner"); showNexusNotice(`EXTERIOR SCAN LOCKED / ${count} OF 3`); return; }
+    if (target === "n07-exterior-window") { updateFacility((current) => ({ ...current, n07: { ...current.n07, windowObserved: true } })); audio.cueInteraction("record"); showNexusNotice("WINDOW OBSERVATION / INTERIOR CONTAINS EXTERIOR VIEWPOINT"); return; }
+    if (target === "n07-exterior-measure") { updateFacility((current) => ({ ...current, n07: { ...current.n07, externalMeasured: true } })); audio.cueInteraction("scanner"); showNexusNotice("EXTERNAL MEASUREMENT / VOLUME RATIO IMPOSSIBLE"); return; }
+    const interpretationByTarget: Partial<Record<NexusInteractionId, N07Interpretation>> = { "n07-interpret-sector": "sector", "n07-interpret-archive": "archive", "n07-interpret-observer": "observer", "n07-interpret-event": "event" };
+    const interpretation = interpretationByTarget[target];
+    if (interpretation) { if (progress.exteriorScans.length < 3 || !progress.windowObserved || !progress.externalMeasured) { showNexusNotice("INTERPRETATION REQUIRES COMPLETE PHYSICAL SURVEY"); return; } updateFacility((current) => ({ ...current, n07: { ...current.n07, interpretation } })); audio.cueInteraction("subject"); showNexusNotice(`${interpretation.toUpperCase()} INTERPRETATION / PHYSICAL MODEL CONSTRUCTED`); return; }
+    if (target === "n07-final-stabilize" || target === "n07-final-preserve") { if (!progress.interpretation) { showNexusNotice("CONSTRUCT AN INTERPRETATION FIRST"); return; } const finalAction = target === "n07-final-stabilize" ? "stabilize" : "preserve"; updateFacility((current) => ({ ...current, n07: { ...current.n07, finalAction, completed: true } }), true); audio.cueInteraction(finalAction === "preserve" ? "record" : "subject"); releasePointer(); setN07CompletionVisible(true); return; }
     if (target === "n07-return") setN07CompletionVisible(true);
-  }, [audio, experienceMode, facilityProgress.n07, moveWithinN07, releasePointer, showNexusNotice, updateFacility]);
+  }, [audio, experienceMode, facilityProgress.n07, moveWithinN07, nexusScanner, releasePointer, showNexusNotice, updateFacility]);
   const handleNexusInteract = useCallback((target: NexusInteractionId) => {
     if (target.startsWith("n07-") && target !== "n07-gate") { handleN07Interact(target); return; }
     if (facilityProgress.consequences.neuralStrategy === "observation" && !facilityProgress.consequences.neuralPredictionTriggered && ["system-terminal", "signal-analysis", "record-search"].includes(target)) {
@@ -524,9 +515,9 @@ function VoidArchiveExperience() {
     if (target === "n07-gate") {
       setNexusScanner(true); audio.cueInteraction(n07Access.thresholdReady ? "subject" : "scanner");
       if (facilityProgress.n07.completed) {
-        const returnPose = n07AreaPoses.reconstruction;
+        const returnPose = n07AreaPoses.corridor;
         releasePointer(); setNexusPose(returnPose); setExperienceMode("n07");
-        updateFacility((current) => ({ ...current, n07: { ...current.n07, area: "reconstruction", checkpointPose: returnPose, returnVisits: current.n07.returnVisits + 1 } }));
+        updateFacility((current) => ({ ...current, n07: { ...current.n07, area: "corridor", checkpointPose: returnPose, returnVisits: current.n07.returnVisits + 1 } }));
         showNexusNotice("RETURN VECTOR / PREVIOUS ROUTE INVERTED · ALTERNATE SEAM ACTIVE"); return;
       }
       if (facilityProgress.n07.entered) { releasePointer(); setNexusPose(facilityProgress.n07.checkpointPose); setExperienceMode("n07"); showNexusNotice("PERSISTED N-07 CHECKPOINT RESTORED"); return; }
@@ -817,7 +808,7 @@ function VoidArchiveExperience() {
       {process.env.NODE_ENV !== "production" && <ConsequenceDebugPanel state={facilityProgress.consequences} onSet={(consequences) => updateFacility((current) => ({ ...current, consequences }))} onArchive={openArchive} onRoom={travelTo} />}
       {process.env.NODE_ENV !== "production" && <output hidden data-nexus-diagnostics={JSON.stringify({ mode: experienceMode, journeyStage, entered: nexusEntered, active: nexusActive, target: nexusTarget, scanner: nexusScanner, terminal: terminalOpen, pointerLocked, room: facilityRoom, hydrated: facilityHydrated, routeTransition, facilityModal, progress: facilityProgress, investigation: facilityProgress.investigation, pose: nexusPose, controls: nexusControls.snapshot() })} />}
       <LoaderOverlay isVisible={isLoading} reducedMotion={reducedMotion} returningVisitor={realitySession.returningVisitor} />
-      <ArchiveCanvas isSceneReady={!isLoading} reducedMotion={reducedMotion} scrollProgress={progressRef} inspection={inspectionRef} tier={tier} quality={quality} hasFinePointer={hasFinePointer} onIntroComplete={handleIntroComplete} mode={experienceMode} nexusActive={nexusActive} gateOpening={experienceMode === "transition" && !returningToNexus} nexusControls={nexusControls} nexusPose={nexusPose} discoveredCount={nexusDiscoveredCount} session={realitySession} facilityRoom={facilityRoom} facilityProgress={facilityProgress} facilityScanner={nexusScanner} nexusTarget={nexusTarget} onNexusTarget={setNexusTarget} onNexusInteract={handleNexusInteract} onNexusScanner={toggleNexusScanner} onNexusPose={handleNexusPose} onPointerLock={setPointerLocked} />
+      <ArchiveCanvas isSceneReady={!isLoading} reducedMotion={reducedMotion} scrollProgress={progressRef} inspection={inspectionRef} tier={tier} quality={quality} hasFinePointer={hasFinePointer} onIntroComplete={handleIntroComplete} mode={experienceMode} nexusActive={nexusActive} gateOpening={experienceMode === "transition" && !returningToNexus} nexusControls={nexusControls} nexusPose={nexusPose} discoveredCount={nexusDiscoveredCount} session={realitySession} facilityRoom={facilityRoom} facilityProgress={facilityProgress} facilityScanner={nexusScanner} nexusTarget={nexusTarget} onNexusTarget={setNexusTarget} onNexusInteract={handleNexusInteract} onNexusScanner={toggleNexusScanner} onNexusPose={handleNexusPose} onPointerLock={setPointerLocked} onN07RuntimeEvent={handleN07RuntimeEvent} />
     </main>
   );
 }
@@ -905,7 +896,7 @@ function N07DebugPanel({ onScenario, returning, onReturning, onThreshold, onLeve
   if (!enabled || hidden) return null;
   const tiers: N07QaScenario[] = ["tier-0", "tier-2", "temporal", "spatial", "mnemonic", "adaptive"];
   const endings: N07QaScenario[] = ["protocol-ending", "subject-ending", "vector-ending", "anomaly-ending"];
-  const levelActions: [string, NexusInteractionId][] = [["REOPEN GATE", "n07-gate"], ["CROSS", "n07-cross-threshold"], ["TOPOLOGY", "n07-topology-missing"], ["EVENT 1", "n07-causal-pre"], ["EVENT 2", "n07-causal-signal"], ["EVENT 3", "n07-causal-containment"], ["EVENT 4", "n07-causal-arrival"], ["MODEL ROUTE", "n07-route-model"], ["CONTRADICTION", "n07-route-contradiction"], ["SECRET", "n07-secret"], ["ACT NOW", "n07-observer-direct"], ["WAIT", "n07-observer-wait"], ["TRAVERSE", "n07-traversal"], ["STABILIZE", "n07-final-stabilize"], ["PRESERVE", "n07-final-preserve"]];
+  const levelActions: [string, NexusInteractionId][] = [["REOPEN GATE", "n07-gate"], ["CROSS", "n07-cross-threshold"], ["REFLECTION", "n07-reflection-route"], ["TOPOLOGY", "n07-topology-missing"], ["TRACE SYNC", "n07-trace-sync"], ["TRACE DIVERGE", "n07-trace-diverge"], ["FUTURE SELF", "n07-future-self"], ["EVIDENCE 13", "n07-evidence-event"], ["EVIDENCE 7A", "n07-evidence-signal"], ["EVIDENCE VOID", "n07-evidence-void"], ["BUILD BRIDGE", "n07-bridge-supported"], ["CONTRA BRIDGE", "n07-bridge-contradictory"], ["ANCHOR 1", "n07-failure-anchor-1"], ["ANCHOR 2", "n07-failure-anchor-2"], ["ANCHOR 3", "n07-failure-anchor-3"], ["ACT NOW", "n07-observer-direct"], ["WAIT", "n07-observer-wait"], ["MODEL ROUTE", "n07-route-model"], ["CONTRADICTION", "n07-route-contradiction"], ["TRAVERSE", "n07-traversal"], ["SCAN ARCHIVE", "n07-exterior-scan-archive"], ["SCAN HORIZON", "n07-exterior-scan-horizon"], ["SCAN OBSERVER", "n07-exterior-scan-observer"], ["WINDOW", "n07-exterior-window"], ["MEASURE", "n07-exterior-measure"], ["SECTOR MODEL", "n07-interpret-sector"], ["ARCHIVE MODEL", "n07-interpret-archive"], ["OBSERVER MODEL", "n07-interpret-observer"], ["EVENT MODEL", "n07-interpret-event"], ["STABILIZE", "n07-final-stabilize"], ["PRESERVE", "n07-final-preserve"]];
   return <aside className="fixed right-3 top-3 z-[76] w-64 border border-white/20 bg-black/92 p-3 text-white" aria-label="N-07 QA controls">
     <p className="text-[7px] tracking-[.27em] text-white/42">N-07 QA / DEV ONLY</p>
     <div className="mt-3 grid grid-cols-2 gap-1">{tiers.map((scenario) => <button key={scenario} type="button" onClick={() => onScenario(scenario)} className="min-h-8 border border-white/12 text-[6px] tracking-[.13em] text-white/48">{scenario.replaceAll("-", " ").toUpperCase()}</button>)}</div>

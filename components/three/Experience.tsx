@@ -19,7 +19,7 @@ import type { NexusControlStore } from "@/game/NexusControlStore";
 import type { RealitySnapshot } from "@/reality/realityTypes";
 import { ArchiveFacility } from "./game/FacilityRooms";
 import { FirstPersonController } from "./game/FirstPersonController";
-import { N07Level } from "./game/N07Level";
+import { N07Level, type N07RuntimeEvent } from "./game/N07Level";
 
 type ExperienceProps = {
   isSceneReady: boolean;
@@ -46,9 +46,10 @@ type ExperienceProps = {
   onNexusScanner: () => void;
   onNexusPose: (pose: PlayerPose) => void;
   onPointerLock: (locked: boolean) => void;
+  onN07RuntimeEvent: (event: N07RuntimeEvent) => void;
 };
 
-export function Experience({ isSceneReady, reducedMotion, scrollProgress, inspection, tier, quality, hasFinePointer, onIntroComplete, mode, nexusActive, gateOpening, nexusControls, nexusPose, discoveredCount, session, facilityRoom, facilityProgress, facilityScanner, nexusTarget, onNexusTarget, onNexusInteract, onNexusScanner, onNexusPose, onPointerLock }: ExperienceProps) {
+export function Experience({ isSceneReady, reducedMotion, scrollProgress, inspection, tier, quality, hasFinePointer, onIntroComplete, mode, nexusActive, gateOpening, nexusControls, nexusPose, discoveredCount, session, facilityRoom, facilityProgress, facilityScanner, nexusTarget, onNexusTarget, onNexusInteract, onNexusScanner, onNexusPose, onPointerLock, onN07RuntimeEvent }: ExperienceProps) {
   const [introComplete, setIntroComplete] = useState(false);
   const observation = mode === "observation";
   const n07 = mode === "n07";
@@ -71,7 +72,7 @@ export function Experience({ isSceneReady, reducedMotion, scrollProgress, inspec
         <Environment />
         <IntroCameraSequence key="observation-intro" isSceneReady={isSceneReady} reducedMotion={reducedMotion} onIntroComplete={() => { setIntroComplete(true); onIntroComplete(); }} />
       </> : <>
-        {n07 ? <N07Level progress={facilityProgress.n07} reducedMotion={reducedMotion} /> : <ArchiveFacility room={facilityRoom} progress={facilityProgress} reducedMotion={reducedMotion} discoveredCount={discoveredCount} session={session} gateOpening={gateOpening} scanner={facilityScanner} target={nexusTarget} />}
+        {n07 ? <N07Level progress={facilityProgress.n07} reducedMotion={reducedMotion} onRuntimeEvent={onN07RuntimeEvent} /> : <ArchiveFacility room={facilityRoom} progress={facilityProgress} reducedMotion={reducedMotion} discoveredCount={discoveredCount} session={session} gateOpening={gateOpening} scanner={facilityScanner} target={nexusTarget} />}
         <FirstPersonController active={nexusActive} tier={tier} reducedMotion={reducedMotion} controls={nexusControls} initialPose={nexusPose} room={n07 ? "n07" : facilityRoom} onTarget={onNexusTarget} onInteract={onNexusInteract} onScannerToggle={onNexusScanner} onPose={onNexusPose} onPointerLock={onPointerLock} />
       </>}
       <PostProcessing tier={tier} reducedMotion={reducedMotion} />

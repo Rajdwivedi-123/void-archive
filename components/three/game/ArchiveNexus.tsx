@@ -150,7 +150,7 @@ function UpperLedge({ visited, active }: { visited: boolean; active: boolean }) 
   </group>;
 }
 
-function N07Gate({ evaluation, reducedMotion, active, committed, completed, route }: { evaluation: N07AccessEvaluation; reducedMotion: boolean; active: boolean; committed: boolean; completed: boolean; route: string | null }) {
+function N07Gate({ evaluation, reducedMotion, active, committed, completed, route, interpretation }: { evaluation: N07AccessEvaluation; reducedMotion: boolean; active: boolean; committed: boolean; completed: boolean; route: string | null; interpretation: string | null }) {
   const fragments = useRef<THREE.Group>(null);
   const clock = useRef(0);
   useFrame((state, delta) => {
@@ -178,9 +178,9 @@ function N07Gate({ evaluation, reducedMotion, active, committed, completed, rout
     </group>
     {evaluation.tier >= 3 && <><spotLight color="#b8c1c0" intensity={evaluation.tier >= 4 ? 11 : 5} position={[0, 12, 5]} angle={.28} penumbra={.86} distance={24} decay={2} /><mesh position={[0, 5.8, -.8]}><planeGeometry args={[5.8, 9.8]} /><meshBasicMaterial color="#8f9b9c" transparent opacity={committed ? .055 : .012 + evaluation.tier * .004} depthWrite={false} /></mesh></>}
     {evaluation.alignmentReady && <><pointLight color="#aeb9b8" intensity={evaluation.thresholdReady ? 6 : 3} position={[-4.6, 7.5, 3.2]} distance={17} decay={2} /><pointLight color="#c2b6ae" intensity={evaluation.thresholdReady ? 5 : 2.5} position={[4.4, 9, 2.6]} distance={16} decay={2} /></>}
-    {completed && <group position={[0, .08, 4.2]} rotation={[-Math.PI / 2, 0, route === "contradiction" ? -.18 : .08]}>{[2.4, 3.6, 4.8].map((radius, index) => <mesh key={radius}><ringGeometry args={[radius, radius + .025, 64]} /><meshBasicMaterial color="#b8c2c0" transparent opacity={.28 - index * .06} toneMapped={false} /></mesh>)}</group>}
+    {completed && <group position={[interpretation === "observer" ? 1.2 : 0, .08, 4.2]} rotation={[-Math.PI / 2, 0, interpretation === "event" ? -.32 : interpretation === "archive" ? .18 : route === "contradiction" ? -.18 : .08]}>{[2.4, 3.6, 4.8].map((radius, index) => <mesh key={radius} scale={interpretation === "sector" && index === 1 ? [.72, 1, 1] : 1}><ringGeometry args={[radius, radius + (interpretation === "archive" ? .045 : .025), 64]} /><meshBasicMaterial color="#b8c2c0" transparent opacity={.3 - index * .06} toneMapped={false} /></mesh>)}</group>}
     <InteractionVolume id="n07-gate" position={[0, 5.5, 2]} size={[8, 11, 4]} />
-    <WorldLabel primary="N-07" secondary={completed ? `TRAVERSAL RETAINED / ${(route ?? "NONLOCAL").toUpperCase()}` : committed ? "COMMITMENT PRESERVED" : evaluation.thresholdReady ? `THRESHOLD / ${evaluation.vector.toUpperCase()}` : evaluation.alignmentReady ? "ALIGNMENT / INCOMPLETE" : "LOCATION / NONLOCAL"} position={[0, 13.8, .7]} width={5.8} active={active || evaluation.thresholdReady} />
+    <WorldLabel primary="N-07" secondary={completed ? `${(interpretation ?? "NONLOCAL").toUpperCase()} INTERPRETATION / RETAINED` : committed ? "COMMITMENT PRESERVED" : evaluation.thresholdReady ? `THRESHOLD / ${evaluation.vector.toUpperCase()}` : evaluation.alignmentReady ? "ALIGNMENT / INCOMPLETE" : "LOCATION / NONLOCAL"} position={[0, 13.8, .7]} width={5.8} active={active || evaluation.thresholdReady} />
   </group>;
 }
 
@@ -338,7 +338,7 @@ export function ArchiveNexus({ reducedMotion, discoveredCount, session, gateOpen
         <mesh position={[0, 4.38, 0]}><boxGeometry args={[3.75, .07, .08]} /><meshBasicMaterial color="#b9aaa2" transparent opacity={.34} toneMapped={false} /></mesh>
         <WorldLabel primary="N-07" secondary="COORDINATE / BEHIND WALL" position={[0, 5.25, .08]} width={3.8} active />
       </group>}
-      {(n07.tier > 0 || session.returningVisitor) && <N07Gate evaluation={n07} reducedMotion={reducedMotion} active={target === "n07-gate"} committed={Boolean(progress.consequences.endingCommit)} completed={progress.n07.completed} route={progress.n07.route} />}
+      {(n07.tier > 0 || session.returningVisitor) && <N07Gate evaluation={n07} reducedMotion={reducedMotion} active={target === "n07-gate"} committed={Boolean(progress.consequences.endingCommit)} completed={progress.n07.completed} route={progress.n07.route} interpretation={progress.n07.interpretation} />}
     </group>
   );
 }
